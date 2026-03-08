@@ -1,2 +1,7 @@
-body { margin: 0; background: #f5f7fb; }
+body { margin: 0; background: #f5f7fb; color: #111827; }
 * { box-sizing: border-box; }
+
+@media (max-width: 768px) {
+  .ant-card { border-radius: 10px; }
+  .ant-typography h3 { font-size: 22px !important; }
+}

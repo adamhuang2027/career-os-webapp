@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sqlite3
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, date
 
 app = Flask(__name__)
 CORS(app)
@@ -15,6 +15,10 @@ def conn():
     c = sqlite3.connect(DB_PATH)
     c.row_factory = sqlite3.Row
     return c
+
+
+def now_iso():
+    return datetime.utcnow().isoformat()
 
 
 def init_db():
@@ -46,6 +50,7 @@ def init_db():
       project_id INTEGER,
       raw_notes TEXT,
       summary TEXT,
+      style TEXT,
       risk TEXT,
       decision_needed TEXT,
       next_step TEXT,
@@ -79,13 +84,23 @@ def init_db():
     CREATE TABLE IF NOT EXISTS reflections (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER DEFAULT 1,
-      date TEXT,
-      wins TEXT,
+      date TEXT UNIQUE,
+      top3 TEXT,
       blockers TEXT,
+      manager_sync TEXT,
+      weekly_progress TEXT,
+      wins TEXT,
       lessons TEXT,
-      tomorrow_focus TEXT
+      tomorrow_focus TEXT,
+      updated_at TEXT
     );
     ''')
+
+    # lightweight migration for existing DBs
+    cols = [r['name'] for r in c.execute("PRAGMA table_info(updates)").fetchall()]
+    if 'style' not in cols:
+        c.execute("ALTER TABLE updates ADD COLUMN style TEXT")
+
     c.commit()
     c.close()
 
@@ -110,7 +125,7 @@ def get_projects():
 @app.post('/api/projects')
 def create_project():
     b = request.json or {}
-    now = datetime.utcnow().isoformat()
+    now = now_iso()
     c = conn()
     c.execute('''
       INSERT INTO projects(title, goal, status, priority, milestone, blocker, next_action, created_at, updated_at)
@@ -140,11 +155,26 @@ def create_insight():
       INSERT INTO insights(title, phenomenon, hypothesis, evidence, recommendation, result, created_at)
       VALUES(?,?,?,?,?,?,?)
     ''', (
-      b.get('title'), b.get('phenomenon'), b.get('hypothesis'), b.get('evidence'), b.get('recommendation'), b.get('result'), datetime.utcnow().isoformat()
+      b.get('title'), b.get('phenomenon'), b.get('hypothesis'), b.get('evidence'), b.get('recommendation'), b.get('result'), now_iso()
     ))
     c.commit()
     c.close()
     return jsonify({'data': {'ok': True}})
+
+
+@app.post('/api/ai/generate-insight')
+def ai_generate_insight():
+    b = request.json or {}
+    phenomenon = (b.get('phenomenon') or '').strip()
+    if not phenomenon:
+        return jsonify({'error': 'phenomenon is required'}), 400
+
+    output = {
+        'hypothesis': f"Potential root causes for '{phenomenon}': data latency, upstream quality issue, or business process change.",
+        'evidence': "Check trend by date, null-rate shift, and segment-level deviation against 4-week baseline.",
+        'recommendation': "Run a 3-step validation: reproduce -> isolate source -> propose owner with ETA and monitoring metric."
+    }
+    return jsonify({'data': output})
 
 
 @app.get('/api/people')
@@ -171,11 +201,58 @@ def create_people():
     return jsonify({'data': {'ok': True}})
 
 
+@app.get('/api/reflections/today')
+def get_reflection_today():
+    d = request.args.get('date') or str(date.today())
+    c = conn()
+    row = c.execute('SELECT * FROM reflections WHERE date = ?', (d,)).fetchone()
+    c.close()
+    return jsonify({'data': dict(row) if row else None})
+
+
+@app.post('/api/reflections/today')
+def upsert_reflection_today():
+    b = request.json or {}
+    d = b.get('date') or str(date.today())
+    payload = (
+        b.get('top3', ''), b.get('blockers', ''), b.get('manager_sync', ''), b.get('weekly_progress', ''),
+        b.get('wins', ''), b.get('lessons', ''), b.get('tomorrow_focus', ''), now_iso(), d
+    )
+
+    c = conn()
+    c.execute('''
+      INSERT INTO reflections(date, top3, blockers, manager_sync, weekly_progress, wins, lessons, tomorrow_focus, updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?)
+      ON CONFLICT(date) DO UPDATE SET
+        top3=excluded.top3,
+        blockers=excluded.blockers,
+        manager_sync=excluded.manager_sync,
+        weekly_progress=excluded.weekly_progress,
+        wins=excluded.wins,
+        lessons=excluded.lessons,
+        tomorrow_focus=excluded.tomorrow_focus,
+        updated_at=excluded.updated_at
+    ''', (d, b.get('top3', ''), b.get('blockers', ''), b.get('manager_sync', ''), b.get('weekly_progress', ''),
+          b.get('wins', ''), b.get('lessons', ''), b.get('tomorrow_focus', ''), now_iso()))
+    c.commit()
+    c.close()
+    return jsonify({'data': {'ok': True}})
+
+
+@app.get('/api/updates')
+def get_updates():
+    c = conn()
+    rows = c.execute('SELECT * FROM updates ORDER BY id DESC LIMIT 20').fetchall()
+    c.close()
+    return jsonify({'data': rows_to_dict(rows)})
+
+
 @app.post('/api/ai/generate-update')
 def ai_generate_update():
     b = request.json or {}
     notes = (b.get('raw_notes') or '').strip()
     style = b.get('style', 'concise')
+    project_id = b.get('project_id')
 
     if style == 'risk':
         output = f"Risk Alert Update\n- Current notes: {notes}\n- Key risk: clarify blocker and owner\n- Decision needed: manager escalation on dependencies\n- Next step: resolve blocker by EOD with explicit owner."
@@ -184,7 +261,25 @@ def ai_generate_update():
     else:
         output = f"Concise Update\n- Completed: {notes}\n- In progress: close blockers\n- Risks: pending dependency alignment\n- Ask: decision support on priority trade-offs."
 
-    return jsonify({'data': {'output': output}})
+    c = conn()
+    cur = c.execute('''
+      INSERT INTO updates(project_id, raw_notes, summary, style, risk, decision_needed, next_step, created_at)
+      VALUES(?,?,?,?,?,?,?,?)
+    ''', (
+      project_id,
+      notes,
+      output,
+      style,
+      'pending dependency alignment',
+      'manager support on priority trade-offs',
+      'close blocker by EOD',
+      now_iso()
+    ))
+    c.commit()
+    update_id = cur.lastrowid
+    c.close()
+
+    return jsonify({'data': {'output': output, 'update_id': update_id}})
 
 
 if __name__ == '__main__':

@@ -1,5 +1,6 @@
-import { Layout, Menu, Typography } from 'antd'
+import { Drawer, Grid, Layout, Menu, Typography } from 'antd'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import DashboardPage from './pages/DashboardPage'
 import ProjectsPage from './pages/ProjectsPage'
 import ManagerUpdatePage from './pages/ManagerUpdatePage'
@@ -7,6 +8,7 @@ import InsightsPage from './pages/InsightsPage'
 import PeoplePage from './pages/PeoplePage'
 
 const { Sider, Content, Header } = Layout
+const { useBreakpoint } = Grid
 
 const items = [
   { key: '/', label: 'Today Dashboard' },
@@ -19,26 +21,44 @@ const items = [
 export default function App() {
   const navigate = useNavigate()
   const location = useLocation()
+  const screens = useBreakpoint()
+  const isMobile = !screens.md
+  const [open, setOpen] = useState(false)
+
+  const menuNode = (
+    <Menu
+      mode="inline"
+      selectedKeys={[location.pathname]}
+      items={items}
+      onClick={({ key }) => {
+        navigate(key)
+        setOpen(false)
+      }}
+    />
+  )
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider width={260} theme="light" style={{ borderRight: '1px solid #f0f0f0' }}>
-        <div style={{ padding: 16 }}>
-          <Typography.Title level={4} style={{ margin: 0 }}>CareerOS</Typography.Title>
-          <Typography.Text type="secondary">WorkOS MVP</Typography.Text>
-        </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[location.pathname]}
-          items={items}
-          onClick={({ key }) => navigate(key)}
-        />
-      </Sider>
+      {!isMobile ? (
+        <Sider width={260} theme="light" style={{ borderRight: '1px solid #f0f0f0' }}>
+          <div style={{ padding: 16 }}>
+            <Typography.Title level={4} style={{ margin: 0 }}>CareerOS</Typography.Title>
+            <Typography.Text type="secondary">WorkOS MVP</Typography.Text>
+          </div>
+          {menuNode}
+        </Sider>
+      ) : (
+        <Drawer title="CareerOS" placement="left" open={open} onClose={() => setOpen(false)}>
+          {menuNode}
+        </Drawer>
+      )}
+
       <Layout>
-        <Header style={{ background: '#fff', borderBottom: '1px solid #f0f0f0', display:'flex', alignItems:'center' }}>
+        <Header style={{ background: '#fff', borderBottom: '1px solid #f0f0f0', display:'flex', alignItems:'center', gap: 12, paddingInline: 16 }}>
+          {isMobile && <a onClick={() => setOpen(true)} style={{ fontSize: 18 }}>☰</a>}
           <Typography.Text strong>From doing work → driving impact</Typography.Text>
         </Header>
-        <Content style={{ padding: 24 }}>
+        <Content style={{ padding: isMobile ? 12 : 24 }}>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
