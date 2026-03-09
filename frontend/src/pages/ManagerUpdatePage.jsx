@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Alert, Button, Card, Input, Select, Space, Typography, Table, message, Tag } from 'antd'
 import { api } from '../api/client'
 
@@ -13,6 +13,7 @@ export default function ManagerUpdatePage() {
   const [projects, setProjects] = useState([])
   const [history, setHistory] = useState([])
   const [genMeta, setGenMeta] = useState(null)
+  const hydratedRef = useRef(false)
 
   const load = async () => {
     const p = await api.get('/projects')
@@ -25,17 +26,20 @@ export default function ManagerUpdatePage() {
 
   useEffect(() => {
     const saved = localStorage.getItem(DRAFT_KEY)
-    if (!saved) return
-    try {
-      const d = JSON.parse(saved)
-      setRaw(d.raw || '')
-      setStyle(d.style || 'concise')
-      setLanguage(d.language || 'en')
-      setProjectId(d.projectId)
-    } catch {}
+    if (saved) {
+      try {
+        const d = JSON.parse(saved)
+        setRaw(d.raw || '')
+        setStyle(d.style || 'concise')
+        setLanguage(d.language || 'en')
+        setProjectId(d.projectId)
+      } catch {}
+    }
+    hydratedRef.current = true
   }, [])
 
   useEffect(() => {
+    if (!hydratedRef.current) return
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ raw, style, language, projectId }))
   }, [raw, style, language, projectId])
 
