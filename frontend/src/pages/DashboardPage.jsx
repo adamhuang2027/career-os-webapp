@@ -46,6 +46,20 @@ export default function DashboardPage() {
     message.success('Today reflection saved')
   }
 
+  const insertTemplate = () => {
+    setForm(prev => ({
+      ...prev,
+      top3: prev.top3 || '1) [Task] - [Definition of done]\n2) [Task] - [Definition of done]\n3) [Task] - [Definition of done]',
+      blockers: prev.blockers || '- Blocker: [what]\n- Impact: [so what]\n- Need: [who/when support needed]',
+      manager_sync: prev.manager_sync || '- Progress: [what moved]\n- Risk: [what may slip]\n- Impact: [business/team impact]\n- Ask: [decision/support needed]',
+      weekly_progress: prev.weekly_progress || '[Project A]: done / next / risk\n[Project B]: done / next / risk',
+      wins: prev.wins || '- [win + metric]\n- [win + metric]',
+      lessons: prev.lessons || 'Lesson: [what worked / what to improve]',
+      tomorrow_focus: prev.tomorrow_focus || '1) [highest priority]\n2) [second priority]\n3) [optional]'
+    }))
+    message.success('Template inserted')
+  }
+
   const generateUpwardSync = async () => {
     const { data } = await api.post('/ai/generate-dashboard-sync', {
       top3: form.top3,
@@ -135,6 +149,7 @@ export default function DashboardPage() {
       </Row>
 
       <Space style={{ marginTop: 16 }} wrap>
+        <Button onClick={insertTemplate}>Insert Template</Button>
         <Button type="primary" onClick={saveToday}>Save Dashboard Reflection</Button>
         <Select value={syncLang} onChange={setSyncLang} options={[{value:'en',label:'English'},{value:'zh',label:'中文'},{value:'bilingual',label:'Bilingual'}]} />
         <Button onClick={generateUpwardSync}>Generate Upward Sync with AI</Button>
