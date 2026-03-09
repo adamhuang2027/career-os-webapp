@@ -387,6 +387,33 @@ def get_updates():
     return jsonify({'data': rows_to_dict(rows)})
 
 
+@app.post('/api/ai/generate-dashboard-sync')
+def ai_generate_dashboard_sync():
+    b = request.json or {}
+    top3 = (b.get('top3') or '').strip()
+    blockers = (b.get('blockers') or '').strip()
+    weekly_progress = (b.get('weekly_progress') or '').strip()
+    language = (b.get('language') or 'en').strip().lower()
+
+    lang_rule = {
+        'en': 'Output in English.',
+        'zh': 'Output in Simplified Chinese.',
+        'bilingual': 'Output concise bilingual Chinese + English.'
+    }.get(language, 'Output in English.')
+
+    source = f"Top priorities: {top3}\nBlockers: {blockers}\nWeekly progress: {weekly_progress}"
+
+    try:
+        output = call_openai_text(
+            'You are a senior manager communications assistant. Write a concise upward sync update for leadership. Keep it to 4 bullets: Progress / Risk / Impact / Ask.',
+            f"Context:\n{source}\n\n{lang_rule}\nMax 8 lines."
+        )
+        return jsonify({'data': {'output': output, 'fallback': False, 'engine': 'openai'}})
+    except Exception:
+        output = f"Progress: {weekly_progress or top3 or 'Made progress on planned priorities.'}\nRisk: {blockers or 'No major blockers.'}\nImpact: Improved delivery visibility and execution confidence.\nAsk: Align dependency owners and priority trade-offs this week."
+        return jsonify({'data': {'output': output, 'fallback': True, 'engine': 'template'}})
+
+
 @app.post('/api/ai/generate-update')
 def ai_generate_update():
     b = request.json or {}

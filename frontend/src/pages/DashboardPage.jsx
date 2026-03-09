@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Card, Col, Input, Row, Typography, message, Tag } from 'antd'
+import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select } from 'antd'
 import { api } from '../api/client'
 
 export default function DashboardPage() {
@@ -14,6 +14,8 @@ export default function DashboardPage() {
     tomorrow_focus: ''
   })
   const [autoSaveState, setAutoSaveState] = useState('idle')
+  const [syncDraft, setSyncDraft] = useState('')
+  const [syncLang, setSyncLang] = useState('en')
   const loadedRef = useRef(false)
 
   const loadToday = async () => {
@@ -44,6 +46,17 @@ export default function DashboardPage() {
     message.success('Today reflection saved')
   }
 
+  const generateUpwardSync = async () => {
+    const { data } = await api.post('/ai/generate-dashboard-sync', {
+      top3: form.top3,
+      blockers: form.blockers,
+      weekly_progress: form.weekly_progress,
+      language: syncLang,
+    })
+    setSyncDraft(data.data.output)
+    message.success(data.data.fallback ? 'Generated (fallback template)' : 'Generated with OpenAI')
+  }
+
   return (
     <>
       <Typography.Title level={3}>Today Dashboard</Typography.Title>
@@ -61,7 +74,16 @@ export default function DashboardPage() {
           setForm({...form, lessons:first || '', tomorrow_focus:rest.join('\n')})
         }} /></Card></Col>
       </Row>
-      <Button type="primary" style={{ marginTop: 16 }} onClick={saveToday}>Save Dashboard Reflection</Button>
+      <Space style={{ marginTop: 16 }} wrap>
+        <Button type="primary" onClick={saveToday}>Save Dashboard Reflection</Button>
+        <Select value={syncLang} onChange={setSyncLang} options={[{value:'en',label:'English'},{value:'zh',label:'中文'},{value:'bilingual',label:'Bilingual'}]} />
+        <Button onClick={generateUpwardSync}>Generate Upward Sync with AI</Button>
+      </Space>
+      {!!syncDraft && (
+        <Card title="Upward Sync Draft" style={{ marginTop: 16 }}>
+          <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>{syncDraft}</Typography.Paragraph>
+        </Card>
+      )}
     </>
   )
 }
