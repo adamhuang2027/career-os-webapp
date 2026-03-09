@@ -111,6 +111,21 @@ def init_db():
     if 'parent_id' not in pcols:
         c.execute("ALTER TABLE projects ADD COLUMN parent_id INTEGER")
 
+    rcols = [r['name'] for r in c.execute("PRAGMA table_info(reflections)").fetchall()]
+    reflection_columns = {
+        'top3': 'TEXT',
+        'blockers': 'TEXT',
+        'manager_sync': 'TEXT',
+        'weekly_progress': 'TEXT',
+        'wins': 'TEXT',
+        'lessons': 'TEXT',
+        'tomorrow_focus': 'TEXT',
+        'updated_at': 'TEXT',
+    }
+    for col, typ in reflection_columns.items():
+        if col not in rcols:
+            c.execute(f"ALTER TABLE reflections ADD COLUMN {col} {typ}")
+
     c.commit()
     c.close()
 
@@ -341,20 +356,24 @@ def upsert_reflection_today():
     )
 
     c = conn()
-    c.execute('''
-      INSERT INTO reflections(date, top3, blockers, manager_sync, weekly_progress, wins, lessons, tomorrow_focus, updated_at)
-      VALUES(?,?,?,?,?,?,?,?,?)
-      ON CONFLICT(date) DO UPDATE SET
-        top3=excluded.top3,
-        blockers=excluded.blockers,
-        manager_sync=excluded.manager_sync,
-        weekly_progress=excluded.weekly_progress,
-        wins=excluded.wins,
-        lessons=excluded.lessons,
-        tomorrow_focus=excluded.tomorrow_focus,
-        updated_at=excluded.updated_at
-    ''', (d, b.get('top3', ''), b.get('blockers', ''), b.get('manager_sync', ''), b.get('weekly_progress', ''),
-          b.get('wins', ''), b.get('lessons', ''), b.get('tomorrow_focus', ''), now_iso()))
+    existing = c.execute('SELECT id FROM reflections WHERE date = ? ORDER BY id DESC LIMIT 1', (d,)).fetchone()
+    if existing:
+        c.execute('''
+          UPDATE reflections
+          SET top3=?, blockers=?, manager_sync=?, weekly_progress=?, wins=?, lessons=?, tomorrow_focus=?, updated_at=?
+          WHERE id=?
+        ''', (
+          b.get('top3', ''), b.get('blockers', ''), b.get('manager_sync', ''), b.get('weekly_progress', ''),
+          b.get('wins', ''), b.get('lessons', ''), b.get('tomorrow_focus', ''), now_iso(), existing['id']
+        ))
+    else:
+        c.execute('''
+          INSERT INTO reflections(date, top3, blockers, manager_sync, weekly_progress, wins, lessons, tomorrow_focus, updated_at)
+          VALUES(?,?,?,?,?,?,?,?,?)
+        ''', (
+          d, b.get('top3', ''), b.get('blockers', ''), b.get('manager_sync', ''), b.get('weekly_progress', ''),
+          b.get('wins', ''), b.get('lessons', ''), b.get('tomorrow_focus', ''), now_iso()
+        ))
     c.commit()
     c.close()
     return jsonify({'data': {'ok': True}})
