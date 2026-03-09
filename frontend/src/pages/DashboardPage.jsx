@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Button, Card, Col, Input, Row, Typography, message } from 'antd'
+import { useEffect, useRef, useState } from 'react'
+import { Button, Card, Col, Input, Row, Typography, message, Tag } from 'antd'
 import { api } from '../api/client'
 
 export default function DashboardPage() {
@@ -13,6 +13,8 @@ export default function DashboardPage() {
     lessons: '',
     tomorrow_focus: ''
   })
+  const [autoSaveState, setAutoSaveState] = useState('idle')
+  const loadedRef = useRef(false)
 
   const loadToday = async () => {
     const { data } = await api.get('/reflections/today', { params: { date: form.date } })
@@ -21,7 +23,21 @@ export default function DashboardPage() {
     }
   }
 
-  useEffect(() => { loadToday() }, [])
+  useEffect(() => { loadToday().finally(() => { loadedRef.current = true }) }, [])
+
+  useEffect(() => {
+    if (!loadedRef.current) return
+    const t = setTimeout(async () => {
+      try {
+        setAutoSaveState('saving')
+        await api.post('/reflections/today', form)
+        setAutoSaveState('saved')
+      } catch {
+        setAutoSaveState('error')
+      }
+    }, 1200)
+    return () => clearTimeout(t)
+  }, [form])
 
   const saveToday = async () => {
     await api.post('/reflections/today', form)
@@ -31,6 +47,9 @@ export default function DashboardPage() {
   return (
     <>
       <Typography.Title level={3}>Today Dashboard</Typography.Title>
+      <Tag color={autoSaveState === 'saved' ? 'green' : autoSaveState === 'saving' ? 'blue' : autoSaveState === 'error' ? 'red' : 'default'} style={{ marginBottom: 12 }}>
+        {autoSaveState === 'saved' ? 'Auto-saved' : autoSaveState === 'saving' ? 'Auto-saving...' : autoSaveState === 'error' ? 'Auto-save failed' : 'Auto-save idle'}
+      </Tag>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}><Card title="Top 3 Priorities"><Input.TextArea rows={5} value={form.top3} onChange={(e)=>setForm({...form, top3:e.target.value})} /></Card></Col>
         <Col xs={24} md={12}><Card title="Current Blockers"><Input.TextArea rows={5} value={form.blockers} onChange={(e)=>setForm({...form, blockers:e.target.value})} /></Card></Col>

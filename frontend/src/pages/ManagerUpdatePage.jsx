@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Input, Select, Space, Typography, Table, message, Tag } from 'antd'
 import { api } from '../api/client'
 
+const DRAFT_KEY = 'careeros:manager-update-draft'
+
 export default function ManagerUpdatePage() {
   const [raw, setRaw] = useState('')
   const [style, setStyle] = useState('concise')
@@ -20,6 +22,22 @@ export default function ManagerUpdatePage() {
   }
 
   useEffect(() => { load() }, [])
+
+  useEffect(() => {
+    const saved = localStorage.getItem(DRAFT_KEY)
+    if (!saved) return
+    try {
+      const d = JSON.parse(saved)
+      setRaw(d.raw || '')
+      setStyle(d.style || 'concise')
+      setLanguage(d.language || 'en')
+      setProjectId(d.projectId)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({ raw, style, language, projectId }))
+  }, [raw, style, language, projectId])
 
   const generate = async () => {
     if (!raw.trim()) return message.warning('Please input raw notes first')

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Typography, message, Tag } from 'antd'
 import { api } from '../api/client'
 
+const DRAFT_KEY = 'careeros:insight-draft'
+
 export default function InsightsPage() {
   const [items, setItems] = useState([])
   const [form] = Form.useForm()
@@ -17,9 +19,28 @@ export default function InsightsPage() {
   }
   useEffect(() => { load() }, [])
 
+  useEffect(() => {
+    const saved = localStorage.getItem(DRAFT_KEY)
+    if (!saved) return
+    try {
+      const d = JSON.parse(saved)
+      form.setFieldsValue(d.form || {})
+      setLanguage(d.language || 'en')
+    } catch {}
+  }, [form])
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      const current = form.getFieldsValue()
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ form: current, language }))
+    }, 1500)
+    return () => clearInterval(t)
+  }, [form, language])
+
   const onFinish = async (values) => {
     await api.post('/insights', values)
     form.resetFields()
+    localStorage.removeItem(DRAFT_KEY)
     load()
   }
 
