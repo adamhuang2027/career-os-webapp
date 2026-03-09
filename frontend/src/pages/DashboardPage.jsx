@@ -79,7 +79,8 @@ export default function DashboardPage() {
       </Tag>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
-          <Card title="Top 3 Priorities" extra={<Typography.Text type="secondary">Write the 3 most important deliverables for today.</Typography.Text>}>
+          <Card title="Top 3 Priorities">
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Write the 3 most important deliverables for today.</Typography.Text>
             <Input.TextArea
               rows={5}
               value={form.top3}
@@ -90,7 +91,8 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} md={12}>
-          <Card title="Current Blockers" extra={<Typography.Text type="secondary">Capture blocker, impact, and who can help.</Typography.Text>}>
+          <Card title="Current Blockers">
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Capture blocker, impact, and who can help.</Typography.Text>
             <Input.TextArea
               rows={5}
               value={form.blockers}
@@ -101,7 +103,8 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} md={12}>
-          <Card title="What to Sync Upward Today" extra={<Typography.Text type="secondary">给上级同步：进展/风险/影响/请求</Typography.Text>}>
+          <Card title="What to Sync Upward Today">
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Give leadership a quick progress/risk/impact/ask update.</Typography.Text>
             <Input.TextArea
               rows={5}
               value={form.manager_sync}
@@ -112,7 +115,8 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24} md={12}>
-          <Card title="Weekly Project Progress" extra={<Typography.Text type="secondary">Track milestone progress by project.</Typography.Text>}>
+          <Card title="Weekly Project Progress">
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Track milestone progress by project.</Typography.Text>
             <Input.TextArea
               rows={5}
               value={form.weekly_progress}
@@ -123,7 +127,8 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24}>
-          <Card title="Wins" extra={<Typography.Text type="secondary">Record completed outcomes (ideally with metrics).</Typography.Text>}>
+          <Card title="Wins">
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Record completed outcomes (ideally with metrics).</Typography.Text>
             <Input.TextArea
               rows={3}
               value={form.wins}
@@ -134,7 +139,8 @@ export default function DashboardPage() {
         </Col>
 
         <Col xs={24}>
-          <Card title="Lessons + Tomorrow Focus" extra={<Typography.Text type="secondary">Capture one lesson and tomorrow's top focus.</Typography.Text>}>
+          <Card title="Lessons + Tomorrow Focus">
+            <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>Capture one lesson and tomorrow's top focus.</Typography.Text>
             <Input.TextArea
               rows={4}
               value={form.lessons + '\n' + form.tomorrow_focus}
