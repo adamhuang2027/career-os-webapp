@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Button, Card, Input, Select, Space, Typography, Table, message } from 'antd'
+import { Alert, Button, Card, Input, Select, Space, Typography, Table, message, Tag } from 'antd'
 import { api } from '../api/client'
 
 export default function ManagerUpdatePage() {
   const [raw, setRaw] = useState('')
   const [style, setStyle] = useState('concise')
   const [result, setResult] = useState('')
+  const [language, setLanguage] = useState('en')
   const [projectId, setProjectId] = useState(undefined)
   const [projects, setProjects] = useState([])
   const [history, setHistory] = useState([])
+  const [genMeta, setGenMeta] = useState(null)
 
   const load = async () => {
     const p = await api.get('/projects')
@@ -21,8 +23,9 @@ export default function ManagerUpdatePage() {
 
   const generate = async () => {
     if (!raw.trim()) return message.warning('Please input raw notes first')
-    const { data } = await api.post('/ai/generate-update', { raw_notes: raw, style, project_id: projectId })
+    const { data } = await api.post('/ai/generate-update', { raw_notes: raw, style, language, project_id: projectId })
     setResult(data.data.output)
+    setGenMeta({ fallback: data.data.fallback, engine: data.data.engine })
     message.success(`Saved to updates table (#${data.data.update_id})`)
     load()
   }
@@ -35,10 +38,19 @@ export default function ManagerUpdatePage() {
         <Space style={{ marginTop: 12 }} wrap>
           <Select style={{ minWidth: 220 }} allowClear placeholder="Link to project (optional)" value={projectId} onChange={setProjectId} options={projects} />
           <Select value={style} onChange={setStyle} options={[{value:'concise',label:'Concise'},{value:'result',label:'Result-Oriented'},{value:'risk',label:'Risk Alert'}]} />
+          <Select value={language} onChange={setLanguage} options={[{value:'en',label:'English'},{value:'zh',label:'中文'},{value:'bilingual',label:'Bilingual'}]} />
           <Button type="primary" onClick={generate}>Generate + Save Update</Button>
+          <Button onClick={generate}>Retry</Button>
         </Space>
       </Card>
       <Card title="Generated Output" style={{ marginBottom: 16 }}>
+        {genMeta && (
+          <Space style={{ marginBottom: 8 }}>
+            <Tag color={genMeta.fallback ? 'orange' : 'green'}>{genMeta.fallback ? 'Fallback' : 'OpenAI'}</Tag>
+            <Typography.Text type="secondary">engine: {genMeta.engine}</Typography.Text>
+          </Space>
+        )}
+        {genMeta?.fallback && <Alert type="warning" showIcon message="Using fallback template output (OpenAI unavailable)." style={{ marginBottom: 8 }} />}
         <Typography.Paragraph style={{ whiteSpace:'pre-wrap' }}>{result || 'No output yet.'}</Typography.Paragraph>
       </Card>
       <Card title="Update History (latest 20)">

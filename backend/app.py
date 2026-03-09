@@ -197,13 +197,20 @@ def create_insight():
 def ai_generate_insight():
     b = request.json or {}
     phenomenon = (b.get('phenomenon') or '').strip()
+    language = (b.get('language') or 'en').strip().lower()
     if not phenomenon:
         return jsonify({'error': 'phenomenon is required'}), 400
+
+    lang_rule = {
+        'en': 'Output in English.',
+        'zh': 'Output in Simplified Chinese.',
+        'bilingual': 'Output concise bilingual Chinese + English.',
+    }.get(language, 'Output in English.')
 
     try:
         raw = call_openai_text(
             'You are a senior business/data analyst assistant. Output strict JSON with keys: hypothesis, evidence, recommendation. Keep each field concise and actionable.',
-            f"Phenomenon: {phenomenon}\nReturn JSON only."
+            f"Phenomenon: {phenomenon}\n{lang_rule}\nReturn JSON only."
         )
         data = json.loads(raw)
         output = {
@@ -211,7 +218,7 @@ def ai_generate_insight():
             'evidence': data.get('evidence', ''),
             'recommendation': data.get('recommendation', ''),
         }
-        return jsonify({'data': output})
+        return jsonify({'data': output, 'meta': {'fallback': False, 'engine': 'openai'}})
     except Exception as e:
         # fallback
         output = {
@@ -219,7 +226,7 @@ def ai_generate_insight():
             'evidence': "Check trend by date, null-rate shift, and segment-level deviation against 4-week baseline.",
             'recommendation': "Run a 3-step validation: reproduce -> isolate source -> propose owner with ETA and monitoring metric."
         }
-        return jsonify({'data': output, 'meta': {'fallback': True, 'reason': str(e)}})
+        return jsonify({'data': output, 'meta': {'fallback': True, 'engine': 'template', 'reason': str(e)}})
 
 
 @app.get('/api/people')
@@ -297,6 +304,7 @@ def ai_generate_update():
     b = request.json or {}
     notes = (b.get('raw_notes') or '').strip()
     style = b.get('style', 'concise')
+    language = (b.get('language') or 'en').strip().lower()
     project_id = b.get('project_id')
 
     if not notes:
@@ -307,11 +315,16 @@ def ai_generate_update():
         'result': 'Result-oriented, highlight measurable impact and outcomes.',
         'risk': 'Risk alert style: emphasize blockers, decision-needed, mitigation and owner.'
     }.get(style, 'Keep it concise and practical.')
+    lang_rule = {
+        'en': 'Output in English.',
+        'zh': 'Output in Simplified Chinese.',
+        'bilingual': 'Output in concise bilingual Chinese + English.'
+    }.get(language, 'Output in English.')
 
     try:
         output = call_openai_text(
             'You are a senior engineering manager assistant writing crisp status updates for leadership. Return plain text only.',
-            f"Raw notes:\n{notes}\n\nStyle:\n{style_guide}\n\nOutput in English, max 8 lines."
+            f"Raw notes:\n{notes}\n\nStyle:\n{style_guide}\n{lang_rule}\n\nMax 8 lines."
         )
         fallback = False
     except Exception as e:
@@ -341,7 +354,7 @@ def ai_generate_update():
     update_id = cur.lastrowid
     c.close()
 
-    return jsonify({'data': {'output': output, 'update_id': update_id, 'fallback': fallback}})
+    return jsonify({'data': {'output': output, 'update_id': update_id, 'fallback': fallback, 'engine': 'template' if fallback else 'openai'}})
 
 
 if __name__ == '__main__':
