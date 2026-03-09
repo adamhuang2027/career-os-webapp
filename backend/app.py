@@ -100,6 +100,18 @@ def init_db():
       tomorrow_focus TEXT,
       updated_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS upward_syncs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER DEFAULT 1,
+      date TEXT,
+      language TEXT,
+      content TEXT,
+      source_top3 TEXT,
+      source_blockers TEXT,
+      source_weekly_progress TEXT,
+      created_at TEXT
+    );
     ''')
 
     # lightweight migration for existing DBs
@@ -385,6 +397,31 @@ def get_updates():
     rows = c.execute('SELECT * FROM updates ORDER BY id DESC LIMIT 20').fetchall()
     c.close()
     return jsonify({'data': rows_to_dict(rows)})
+
+
+@app.get('/api/upward-syncs')
+def get_upward_syncs():
+    c = conn()
+    rows = c.execute('SELECT * FROM upward_syncs ORDER BY id DESC LIMIT 50').fetchall()
+    c.close()
+    return jsonify({'data': rows_to_dict(rows)})
+
+
+@app.post('/api/upward-syncs')
+def create_upward_sync():
+    b = request.json or {}
+    c = conn()
+    c.execute('''
+      INSERT INTO upward_syncs(date, language, content, source_top3, source_blockers, source_weekly_progress, created_at)
+      VALUES(?,?,?,?,?,?,?)
+    ''', (
+      b.get('date'), b.get('language', 'en'), b.get('content', ''),
+      b.get('source_top3', ''), b.get('source_blockers', ''), b.get('source_weekly_progress', ''),
+      now_iso()
+    ))
+    c.commit()
+    c.close()
+    return jsonify({'data': {'ok': True}})
 
 
 @app.post('/api/ai/generate-dashboard-sync')

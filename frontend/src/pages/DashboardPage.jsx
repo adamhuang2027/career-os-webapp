@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select } from 'antd'
+import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table } from 'antd'
 import { api } from '../api/client'
 
 export default function DashboardPage() {
@@ -16,6 +16,7 @@ export default function DashboardPage() {
   const [autoSaveState, setAutoSaveState] = useState('idle')
   const [syncDraft, setSyncDraft] = useState('')
   const [syncLang, setSyncLang] = useState('en')
+  const [syncHistory, setSyncHistory] = useState([])
   const loadedRef = useRef(false)
 
   const loadToday = async () => {
@@ -25,7 +26,15 @@ export default function DashboardPage() {
     }
   }
 
-  useEffect(() => { loadToday().finally(() => { loadedRef.current = true }) }, [])
+  const loadSyncHistory = async () => {
+    const { data } = await api.get('/upward-syncs')
+    setSyncHistory(data.data || [])
+  }
+
+  useEffect(() => {
+    loadToday().finally(() => { loadedRef.current = true })
+    loadSyncHistory()
+  }, [])
 
   useEffect(() => {
     if (!loadedRef.current) return
@@ -69,6 +78,20 @@ export default function DashboardPage() {
     })
     setSyncDraft(data.data.output)
     message.success(data.data.fallback ? 'Generated (fallback template)' : 'Generated with OpenAI')
+  }
+
+  const saveUpwardSync = async () => {
+    if (!syncDraft.trim()) return message.warning('Generate a draft first')
+    await api.post('/upward-syncs', {
+      date: form.date,
+      language: syncLang,
+      content: syncDraft,
+      source_top3: form.top3,
+      source_blockers: form.blockers,
+      source_weekly_progress: form.weekly_progress,
+    })
+    message.success('Upward sync saved')
+    loadSyncHistory()
   }
 
   return (
@@ -159,6 +182,7 @@ export default function DashboardPage() {
         <Button type="primary" onClick={saveToday}>Save Dashboard Reflection</Button>
         <Select value={syncLang} onChange={setSyncLang} options={[{value:'en',label:'English'},{value:'zh',label:'Chinese'},{value:'bilingual',label:'Bilingual'}]} />
         <Button onClick={generateUpwardSync}>Generate Upward Sync with AI</Button>
+        <Button onClick={saveUpwardSync}>Save Upward Sync</Button>
       </Space>
 
       {!!syncDraft && (
@@ -166,6 +190,20 @@ export default function DashboardPage() {
           <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>{syncDraft}</Typography.Paragraph>
         </Card>
       )}
+
+      <Card title="Saved Upward Sync Reports" style={{ marginTop: 16 }}>
+        <Table
+          rowKey="id"
+          dataSource={syncHistory}
+          pagination={{ pageSize: 8 }}
+          columns={[
+            { title: 'Date', dataIndex: 'date', width: 120 },
+            { title: 'Lang', dataIndex: 'language', width: 100 },
+            { title: 'Content', dataIndex: 'content', render: (v) => <Typography.Text>{v}</Typography.Text> },
+            { title: 'Saved At', dataIndex: 'created_at', width: 220 },
+          ]}
+        />
+      </Card>
     </>
   )
 }
