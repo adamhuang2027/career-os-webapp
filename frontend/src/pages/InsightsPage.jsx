@@ -96,7 +96,7 @@ export default function InsightsPage() {
           <Form.Item name="recommendation" label="Recommendation"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="result" label="Result (optional)"><Input.TextArea rows={2} /></Form.Item>
           <Space wrap>
-            <Select value={language} onChange={setLanguage} options={[{value:'en',label:'English'},{value:'zh',label:'中文'},{value:'bilingual',label:'Bilingual'}]} />
+            <Select value={language} onChange={setLanguage} options={[{value:'en',label:'English'},{value:'zh',label:'Chinese'},{value:'bilingual',label:'Bilingual'}]} />
             <Button onClick={() => generateDraft(form)} loading={generating}>AI Draft from Phenomenon</Button>
             <Button onClick={() => generateDraft(form)}>Retry Draft</Button>
             <Button type="primary" htmlType="submit">Save Insight</Button>

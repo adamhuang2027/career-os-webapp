@@ -79,22 +79,22 @@ export default function DashboardPage() {
       </Tag>
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
-          <Card title="Top 3 Priorities" extra={<Typography.Text type="secondary">写今天最重要的3件事（可执行、可交付）</Typography.Text>}>
+          <Card title="Top 3 Priorities" extra={<Typography.Text type="secondary">Write the 3 most important deliverables for today.</Typography.Text>}>
             <Input.TextArea
               rows={5}
               value={form.top3}
-              placeholder={'建议格式：\n1) [任务] - [完成标准]\n2) [任务] - [完成标准]\n3) [任务] - [完成标准]'}
+              placeholder={'Suggested format:\n1) [Task] - [Definition of done]\n2) [Task] - [Definition of done]\n3) [Task] - [Definition of done]'}
               onChange={(e)=>setForm({...form, top3:e.target.value})}
             />
           </Card>
         </Col>
 
         <Col xs={24} md={12}>
-          <Card title="Current Blockers" extra={<Typography.Text type="secondary">写当前卡点、影响、需要谁支持</Typography.Text>}>
+          <Card title="Current Blockers" extra={<Typography.Text type="secondary">Capture blocker, impact, and who can help.</Typography.Text>}>
             <Input.TextArea
               rows={5}
               value={form.blockers}
-              placeholder={'建议格式：\n- Blocker: [是什么问题]\n- Impact: [影响什么]\n- Need: [需要谁在何时支持]'}
+              placeholder={'Suggested format:\n- Blocker: [what is blocked]\n- Impact: [what is impacted]\n- Need: [who/when support is needed]'}
               onChange={(e)=>setForm({...form, blockers:e.target.value})}
             />
           </Card>
@@ -105,40 +105,40 @@ export default function DashboardPage() {
             <Input.TextArea
               rows={5}
               value={form.manager_sync}
-              placeholder={'建议格式（最多6-8行）：\n- Progress:\n- Risk:\n- Impact:\n- Ask:'}
+              placeholder={'Suggested format (max 6-8 lines):\n- Progress:\n- Risk:\n- Impact:\n- Ask:'}
               onChange={(e)=>setForm({...form, manager_sync:e.target.value})}
             />
           </Card>
         </Col>
 
         <Col xs={24} md={12}>
-          <Card title="Weekly Project Progress" extra={<Typography.Text type="secondary">按项目写本周里程碑进展</Typography.Text>}>
+          <Card title="Weekly Project Progress" extra={<Typography.Text type="secondary">Track milestone progress by project.</Typography.Text>}>
             <Input.TextArea
               rows={5}
               value={form.weekly_progress}
-              placeholder={'建议格式：\n[Project A]: 本周完成/下步/风险\n[Project B]: 本周完成/下步/风险'}
+              placeholder={'Suggested format:\n[Project A]: done this week / next step / risk\n[Project B]: done this week / next step / risk'}
               onChange={(e)=>setForm({...form, weekly_progress:e.target.value})}
             />
           </Card>
         </Col>
 
         <Col xs={24}>
-          <Card title="Wins" extra={<Typography.Text type="secondary">记录今天做成的事（最好有量化结果）</Typography.Text>}>
+          <Card title="Wins" extra={<Typography.Text type="secondary">Record completed outcomes (ideally with metrics).</Typography.Text>}>
             <Input.TextArea
               rows={3}
               value={form.wins}
-              placeholder={'示例：\n- 优化SQL后报表耗时从12min降到4min\n- 完成X功能并提交PR #123'}
+              placeholder={'Example:\n- Reduced report runtime from 12min to 4min after SQL optimization\n- Shipped feature X and opened PR #123'}
               onChange={(e)=>setForm({...form, wins:e.target.value})}
             />
           </Card>
         </Col>
 
         <Col xs={24}>
-          <Card title="Lessons + Tomorrow Focus" extra={<Typography.Text type="secondary">复盘1条经验 + 明天最优先目标</Typography.Text>}>
+          <Card title="Lessons + Tomorrow Focus" extra={<Typography.Text type="secondary">Capture one lesson and tomorrow's top focus.</Typography.Text>}>
             <Input.TextArea
               rows={4}
               value={form.lessons + '\n' + form.tomorrow_focus}
-              placeholder={'第一行写 Lesson（今天学到/下次避免）\n后续写 Tomorrow Focus（明天最关键1-3件事）'}
+              placeholder={'First line: Lesson learned (or what to avoid next time)\nNext lines: Tomorrow Focus (top 1-3 priorities)'}
               onChange={(e)=>{
                 const [first,...rest] = e.target.value.split('\n')
                 setForm({...form, lessons:first || '', tomorrow_focus:rest.join('\n')})
@@ -151,7 +151,7 @@ export default function DashboardPage() {
       <Space style={{ marginTop: 16 }} wrap>
         <Button onClick={insertTemplate}>Insert Template</Button>
         <Button type="primary" onClick={saveToday}>Save Dashboard Reflection</Button>
-        <Select value={syncLang} onChange={setSyncLang} options={[{value:'en',label:'English'},{value:'zh',label:'中文'},{value:'bilingual',label:'Bilingual'}]} />
+        <Select value={syncLang} onChange={setSyncLang} options={[{value:'en',label:'English'},{value:'zh',label:'Chinese'},{value:'bilingual',label:'Bilingual'}]} />
         <Button onClick={generateUpwardSync}>Generate Upward Sync with AI</Button>
       </Space>
 

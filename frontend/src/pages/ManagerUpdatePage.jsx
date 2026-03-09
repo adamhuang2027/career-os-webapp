@@ -52,7 +52,7 @@ export default function ManagerUpdatePage() {
         <Space style={{ marginTop: 12 }} wrap>
           <Select style={{ minWidth: 220 }} allowClear placeholder="Link to project (optional)" value={projectId} onChange={setProjectId} options={projects} />
           <Select value={style} onChange={setStyle} options={[{value:'concise',label:'Concise'},{value:'result',label:'Result-Oriented'},{value:'risk',label:'Risk Alert'}]} />
-          <Select value={language} onChange={setLanguage} options={[{value:'en',label:'English'},{value:'zh',label:'中文'},{value:'bilingual',label:'Bilingual'}]} />
+          <Select value={language} onChange={setLanguage} options={[{value:'en',label:'English'},{value:'zh',label:'Chinese'},{value:'bilingual',label:'Bilingual'}]} />
           <Button type="primary" onClick={generate}>Generate + Save Update</Button>
           <Button onClick={generate}>Retry</Button>
         </Space>
