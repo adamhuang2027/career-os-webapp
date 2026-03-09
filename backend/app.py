@@ -223,6 +223,25 @@ def create_insight():
     return jsonify({'data': {'ok': True}})
 
 
+@app.put('/api/insights/<int:insight_id>')
+def update_insight(insight_id):
+    b = request.json or {}
+    c = conn()
+    cur = c.execute('''
+      UPDATE insights
+      SET title=?, phenomenon=?, hypothesis=?, evidence=?, recommendation=?, result=?
+      WHERE id=?
+    ''', (
+      b.get('title'), b.get('phenomenon'), b.get('hypothesis'), b.get('evidence'), b.get('recommendation'), b.get('result'), insight_id
+    ))
+    c.commit()
+    updated = cur.rowcount
+    c.close()
+    if not updated:
+        return jsonify({'error': 'insight not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
 @app.post('/api/ai/generate-insight')
 def ai_generate_insight():
     b = request.json or {}
