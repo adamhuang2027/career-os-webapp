@@ -8,11 +8,13 @@ export default function ProjectsPage() {
   const [form] = Form.useForm()
   const [editForm] = Form.useForm()
   const [editing, setEditing] = useState(null)
+  const [parentOptions, setParentOptions] = useState([])
 
   const load = async () => {
     setLoading(true)
     const { data } = await api.get('/projects')
     setItems(data.data)
+    setParentOptions((data.data || []).map(x => ({ value: x.id, label: x.title })))
     setLoading(false)
   }
 
@@ -28,6 +30,7 @@ export default function ProjectsPage() {
   const openEdit = (row) => {
     setEditing(row)
     editForm.setFieldsValue({
+      parent_id: row.parent_id,
       title: row.title,
       goal: row.goal,
       status: row.status,
@@ -51,6 +54,7 @@ export default function ProjectsPage() {
       <Typography.Title level={3}>Projects</Typography.Title>
       <Card title="New Project" style={{ marginBottom: 16 }}>
         <Form layout="vertical" form={form} onFinish={onFinish}>
+          <Form.Item name="parent_id" label="Parent Project (optional)"><Select allowClear options={parentOptions} placeholder="Select a parent project" /></Form.Item>
           <Form.Item name="title" label="Title" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="goal" label="Goal"><Input.TextArea rows={2} /></Form.Item>
           <Space style={{ width: '100%' }} align="start" wrap>
@@ -72,6 +76,7 @@ export default function ProjectsPage() {
           pagination={false}
           columns={[
             { title: 'Title', dataIndex: 'title' },
+            { title: 'Parent', dataIndex: 'parent_title', render: (v) => v || '-' },
             { title: 'Status', dataIndex: 'status' },
             { title: 'Priority', dataIndex: 'priority' },
             { title: 'Milestone', dataIndex: 'milestone' },
@@ -89,6 +94,7 @@ export default function ProjectsPage() {
         okText="Save Changes"
       >
         <Form layout="vertical" form={editForm}>
+          <Form.Item name="parent_id" label="Parent Project (optional)"><Select allowClear options={(parentOptions || []).filter(o => o.value !== editing?.id)} placeholder="Select a parent project" /></Form.Item>
           <Form.Item name="title" label="Title" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="goal" label="Goal"><Input.TextArea rows={2} /></Form.Item>
           <Space style={{ width: '100%' }} align="start" wrap>

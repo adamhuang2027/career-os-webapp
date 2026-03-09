@@ -38,6 +38,7 @@ def init_db():
     CREATE TABLE IF NOT EXISTS projects (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER DEFAULT 1,
+      parent_id INTEGER,
       title TEXT NOT NULL,
       goal TEXT,
       status TEXT,
@@ -106,6 +107,10 @@ def init_db():
     if 'style' not in cols:
         c.execute("ALTER TABLE updates ADD COLUMN style TEXT")
 
+    pcols = [r['name'] for r in c.execute("PRAGMA table_info(projects)").fetchall()]
+    if 'parent_id' not in pcols:
+        c.execute("ALTER TABLE projects ADD COLUMN parent_id INTEGER")
+
     c.commit()
     c.close()
 
@@ -148,7 +153,12 @@ def health():
 @app.get('/api/projects')
 def get_projects():
     c = conn()
-    rows = c.execute('SELECT * FROM projects ORDER BY id DESC').fetchall()
+    rows = c.execute('''
+      SELECT p.*, pp.title AS parent_title
+      FROM projects p
+      LEFT JOIN projects pp ON p.parent_id = pp.id
+      ORDER BY p.id DESC
+    ''').fetchall()
     c.close()
     return jsonify({'data': rows_to_dict(rows)})
 
@@ -159,10 +169,10 @@ def create_project():
     now = now_iso()
     c = conn()
     c.execute('''
-      INSERT INTO projects(title, goal, status, priority, milestone, blocker, next_action, created_at, updated_at)
-      VALUES(?,?,?,?,?,?,?,?,?)
+      INSERT INTO projects(parent_id, title, goal, status, priority, milestone, blocker, next_action, created_at, updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?)
     ''', (
-      b.get('title'), b.get('goal'), b.get('status', 'planned'), b.get('priority', 'medium'),
+      b.get('parent_id'), b.get('title'), b.get('goal'), b.get('status', 'planned'), b.get('priority', 'medium'),
       b.get('milestone'), b.get('blocker'), b.get('next_action'), now, now
     ))
     c.commit()
@@ -176,10 +186,10 @@ def update_project(project_id):
     c = conn()
     cur = c.execute('''
       UPDATE projects
-      SET title=?, goal=?, status=?, priority=?, milestone=?, blocker=?, next_action=?, updated_at=?
+      SET parent_id=?, title=?, goal=?, status=?, priority=?, milestone=?, blocker=?, next_action=?, updated_at=?
       WHERE id=?
     ''', (
-      b.get('title'), b.get('goal'), b.get('status', 'planned'), b.get('priority', 'medium'),
+      b.get('parent_id'), b.get('title'), b.get('goal'), b.get('status', 'planned'), b.get('priority', 'medium'),
       b.get('milestone'), b.get('blocker'), b.get('next_action'), now_iso(), project_id
     ))
     c.commit()
