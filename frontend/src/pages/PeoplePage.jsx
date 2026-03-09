@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Card, DatePicker, Form, Input, Select, Table, Typography, Modal, Tag, Row, Col, Statistic, message } from 'antd'
+import { Button, Card, DatePicker, Form, Input, Select, Table, Typography, Modal, Tag, Row, Col, Statistic, message, Progress, List, Space } from 'antd'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
 
@@ -50,9 +50,53 @@ export default function PeoplePage() {
     const byTeam = {}
     for (const x of items) {
       const key = x.team || 'Unknown'
-      byTeam[key] = (byTeam[key] || 0) + 1
+      byTeam[key] = byTeam[key] || { total: 0, strong: 0, medium: 0, weak: 0 }
+      byTeam[key].total += 1
+      const level = x.relationship_level || 'weak'
+      byTeam[key][level] = (byTeam[key][level] || 0) + 1
     }
-    return { strong, medium, weak, byTeam }
+
+    const teamRows = Object.entries(byTeam).map(([team, s]) => ({
+      team,
+      ...s,
+      strengthScore: s.total ? Math.round(((s.strong * 1 + s.medium * 0.6 + s.weak * 0.2) / s.total) * 100) : 0
+    })).sort((a, b) => a.strengthScore - b.strengthScore)
+
+    return { strong, medium, weak, byTeam, teamRows }
+  }, [items])
+
+  const followups = useMemo(() => {
+    const today = dayjs().startOf('day')
+    return [...items]
+      .filter(x => x.next_followup_date)
+      .map(x => {
+        const d = dayjs(x.next_followup_date)
+        const diff = d.diff(today, 'day')
+        let bucket = 'later'
+        if (diff < 0) bucket = 'overdue'
+        else if (diff <= 7) bucket = 'next7'
+        else if (diff <= 14) bucket = 'next14'
+        return { ...x, diff, bucket }
+      })
+      .sort((a, b) => a.diff - b.diff)
+  }, [items])
+
+  const topConnectors = useMemo(() => {
+    const map = {}
+    for (const x of items) {
+      const key = x.team || 'Unknown'
+      map[key] = map[key] || []
+      map[key].push(x)
+    }
+    return Object.entries(map).map(([team, people]) => ({
+      team,
+      people: people
+        .sort((a, b) => {
+          const score = { strong: 3, medium: 2, weak: 1 }
+          return (score[b.relationship_level] || 1) - (score[a.relationship_level] || 1)
+        })
+        .slice(0, 3)
+    }))
   }, [items])
 
   return (
@@ -68,10 +112,71 @@ export default function PeoplePage() {
             <Typography.Text type="secondary">By Team:</Typography.Text>
             <div style={{ marginTop: 8 }}>
               {Object.entries(stats.byTeam).map(([team, count]) => (
-                <Tag key={team} color="blue" style={{ marginBottom: 6 }}>{team}: {count}</Tag>
+                <Tag key={team} color="blue" style={{ marginBottom: 6 }}>{team}: {count.total}</Tag>
               ))}
             </div>
           </Col>
+        </Row>
+      </Card>
+
+      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+        <Col xs={24} lg={12}>
+          <Card title="Follow-up Timeline (Next 14 Days)">
+            <List
+              dataSource={followups.filter(x => x.bucket === 'overdue' || x.bucket === 'next7' || x.bucket === 'next14').slice(0, 20)}
+              locale={{ emptyText: 'No scheduled follow-ups in next 14 days.' }}
+              renderItem={(item) => (
+                <List.Item>
+                  <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                    <Space>
+                      <Typography.Text strong>{item.name}</Typography.Text>
+                      <Tag>{item.team || 'Unknown'}</Tag>
+                      <Tag color={item.bucket === 'overdue' ? 'red' : item.bucket === 'next7' ? 'gold' : 'blue'}>
+                        {item.bucket === 'overdue' ? `Overdue ${Math.abs(item.diff)}d` : `In ${item.diff}d`}
+                      </Tag>
+                    </Space>
+                    <Typography.Text type="secondary">{item.role || '-'} · {item.next_followup_date}</Typography.Text>
+                  </Space>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+
+        <Col xs={24} lg={12}>
+          <Card title="Team Relationship Heatmap">
+            <List
+              dataSource={stats.teamRows}
+              renderItem={(row) => (
+                <List.Item>
+                  <div style={{ width: '100%' }}>
+                    <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                      <Typography.Text>{row.team}</Typography.Text>
+                      <Typography.Text type="secondary">{row.strong}/{row.total} strong</Typography.Text>
+                    </Space>
+                    <Progress percent={row.strengthScore} size="small" status={row.strengthScore < 55 ? 'exception' : 'normal'} />
+                  </div>
+                </List.Item>
+              )}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      <Card title="Network Snapshot (Top Contacts by Team)" style={{ marginBottom: 16 }}>
+        <Row gutter={[12, 12]}>
+          {topConnectors.map(group => (
+            <Col xs={24} md={12} xl={8} key={group.team}>
+              <Card size="small" title={group.team}>
+                {group.people.map(p => (
+                  <div key={p.id} style={{ marginBottom: 8 }}>
+                    <Typography.Text>{p.name}</Typography.Text>
+                    <Tag style={{ marginLeft: 8 }} color={p.relationship_level === 'strong' ? 'green' : p.relationship_level === 'medium' ? 'gold' : 'default'}>{p.relationship_level || 'weak'}</Tag>
+                  </div>
+                ))}
+              </Card>
+            </Col>
+          ))}
         </Row>
       </Card>
 
