@@ -3,12 +3,17 @@ from flask_cors import CORS
 import sqlite3
 from pathlib import Path
 from datetime import datetime, date
+import os
+import json
+import requests
 
 app = Flask(__name__)
 CORS(app)
 
 BASE = Path(__file__).resolve().parent
 DB_PATH = BASE / 'careeros.db'
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '').strip()
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
 
 
 def conn():
@@ -109,6 +114,32 @@ def rows_to_dict(rows):
     return [dict(r) for r in rows]
 
 
+def call_openai_text(system_prompt: str, user_prompt: str) -> str:
+    if not OPENAI_API_KEY:
+        raise RuntimeError('OPENAI_API_KEY is missing')
+
+    payload = {
+        'model': OPENAI_MODEL,
+        'messages': [
+            {'role': 'system', 'content': system_prompt},
+            {'role': 'user', 'content': user_prompt}
+        ],
+        'temperature': 0.3
+    }
+
+    resp = requests.post(
+        'https://api.openai.com/v1/chat/completions',
+        headers={
+            'Authorization': f'Bearer {OPENAI_API_KEY}',
+            'Content-Type': 'application/json'
+        },
+        data=json.dumps(payload),
+        timeout=40
+    )
+    resp.raise_for_status()
+    return resp.json()['choices'][0]['message']['content'].strip()
+
+
 @app.get('/api/health')
 def health():
     return jsonify({'data': {'ok': True}})
@@ -169,12 +200,26 @@ def ai_generate_insight():
     if not phenomenon:
         return jsonify({'error': 'phenomenon is required'}), 400
 
-    output = {
-        'hypothesis': f"Potential root causes for '{phenomenon}': data latency, upstream quality issue, or business process change.",
-        'evidence': "Check trend by date, null-rate shift, and segment-level deviation against 4-week baseline.",
-        'recommendation': "Run a 3-step validation: reproduce -> isolate source -> propose owner with ETA and monitoring metric."
-    }
-    return jsonify({'data': output})
+    try:
+        raw = call_openai_text(
+            'You are a senior business/data analyst assistant. Output strict JSON with keys: hypothesis, evidence, recommendation. Keep each field concise and actionable.',
+            f"Phenomenon: {phenomenon}\nReturn JSON only."
+        )
+        data = json.loads(raw)
+        output = {
+            'hypothesis': data.get('hypothesis', ''),
+            'evidence': data.get('evidence', ''),
+            'recommendation': data.get('recommendation', ''),
+        }
+        return jsonify({'data': output})
+    except Exception as e:
+        # fallback
+        output = {
+            'hypothesis': f"Potential root causes for '{phenomenon}': data latency, upstream quality issue, or business process change.",
+            'evidence': "Check trend by date, null-rate shift, and segment-level deviation against 4-week baseline.",
+            'recommendation': "Run a 3-step validation: reproduce -> isolate source -> propose owner with ETA and monitoring metric."
+        }
+        return jsonify({'data': output, 'meta': {'fallback': True, 'reason': str(e)}})
 
 
 @app.get('/api/people')
@@ -254,12 +299,29 @@ def ai_generate_update():
     style = b.get('style', 'concise')
     project_id = b.get('project_id')
 
-    if style == 'risk':
-        output = f"Risk Alert Update\n- Current notes: {notes}\n- Key risk: clarify blocker and owner\n- Decision needed: manager escalation on dependencies\n- Next step: resolve blocker by EOD with explicit owner."
-    elif style == 'result':
-        output = f"Result-Oriented Update\n- Outcomes: {notes}\n- Business impact: improved execution visibility and delivery confidence\n- Next: convert open risks into dated actions."
-    else:
-        output = f"Concise Update\n- Completed: {notes}\n- In progress: close blockers\n- Risks: pending dependency alignment\n- Ask: decision support on priority trade-offs."
+    if not notes:
+        return jsonify({'error': 'raw_notes is required'}), 400
+
+    style_guide = {
+        'concise': 'Keep it brief, 4 bullet points: Completed / In progress / Risks / Ask.',
+        'result': 'Result-oriented, highlight measurable impact and outcomes.',
+        'risk': 'Risk alert style: emphasize blockers, decision-needed, mitigation and owner.'
+    }.get(style, 'Keep it concise and practical.')
+
+    try:
+        output = call_openai_text(
+            'You are a senior engineering manager assistant writing crisp status updates for leadership. Return plain text only.',
+            f"Raw notes:\n{notes}\n\nStyle:\n{style_guide}\n\nOutput in English, max 8 lines."
+        )
+        fallback = False
+    except Exception as e:
+        fallback = True
+        if style == 'risk':
+            output = f"Risk Alert Update\n- Current notes: {notes}\n- Key risk: clarify blocker and owner\n- Decision needed: manager escalation on dependencies\n- Next step: resolve blocker by EOD with explicit owner."
+        elif style == 'result':
+            output = f"Result-Oriented Update\n- Outcomes: {notes}\n- Business impact: improved execution visibility and delivery confidence\n- Next: convert open risks into dated actions."
+        else:
+            output = f"Concise Update\n- Completed: {notes}\n- In progress: close blockers\n- Risks: pending dependency alignment\n- Ask: decision support on priority trade-offs."
 
     c = conn()
     cur = c.execute('''
@@ -279,7 +341,7 @@ def ai_generate_update():
     update_id = cur.lastrowid
     c.close()
 
-    return jsonify({'data': {'output': output, 'update_id': update_id}})
+    return jsonify({'data': {'output': output, 'update_id': update_id, 'fallback': fallback}})
 
 
 if __name__ == '__main__':

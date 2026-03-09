@@ -55,8 +55,17 @@ Frontend runs on: `http://127.0.0.1:5174`
 - `POST /api/people`
 - `POST /api/ai/generate-update`
 
-## Next Steps
-- Add auth
-- Connect real OpenAI API
-- Add Manager Update history table writes
-- Add reflections and capability scoring
+## OpenAI Setup (Phase 4)
+In backend terminal, set:
+
+```bash
+export OPENAI_API_KEY="your_key"
+export OPENAI_MODEL="gpt-4o-mini"   # optional
+```
+
+Then run backend normally.
+
+## Delivered in Phase 4
+- Real OpenAI generation for Manager Update (`/api/ai/generate-update`)
+- Real OpenAI generation for Insight Draft (`/api/ai/generate-insight`)
+- Automatic fallback to template output if API fails
