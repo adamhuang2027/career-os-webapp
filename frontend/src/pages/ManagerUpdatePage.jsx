@@ -1,19 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Input, Select, Space, Typography, Table, message, Tag } from 'antd'
 import { api } from '../api/client'
 
 const DRAFT_KEY = 'careeros:manager-update-draft'
 
 export default function ManagerUpdatePage() {
-  const [raw, setRaw] = useState('')
-  const [style, setStyle] = useState('concise')
+  const getDraft = () => {
+    try {
+      return JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}')
+    } catch {
+      return {}
+    }
+  }
+
+  const [raw, setRaw] = useState(() => getDraft().raw || '')
+  const [style, setStyle] = useState(() => getDraft().style || 'concise')
   const [result, setResult] = useState('')
-  const [language, setLanguage] = useState('en')
-  const [projectId, setProjectId] = useState(undefined)
+  const [language, setLanguage] = useState(() => getDraft().language || 'en')
+  const [projectId, setProjectId] = useState(() => getDraft().projectId)
   const [projects, setProjects] = useState([])
   const [history, setHistory] = useState([])
   const [genMeta, setGenMeta] = useState(null)
-  const hydratedRef = useRef(false)
 
   const load = async () => {
     const p = await api.get('/projects')
@@ -25,21 +32,6 @@ export default function ManagerUpdatePage() {
   useEffect(() => { load() }, [])
 
   useEffect(() => {
-    const saved = localStorage.getItem(DRAFT_KEY)
-    if (saved) {
-      try {
-        const d = JSON.parse(saved)
-        setRaw(d.raw || '')
-        setStyle(d.style || 'concise')
-        setLanguage(d.language || 'en')
-        setProjectId(d.projectId)
-      } catch {}
-    }
-    hydratedRef.current = true
-  }, [])
-
-  useEffect(() => {
-    if (!hydratedRef.current) return
     localStorage.setItem(DRAFT_KEY, JSON.stringify({ raw, style, language, projectId }))
   }, [raw, style, language, projectId])
 
