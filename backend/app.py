@@ -170,6 +170,26 @@ def create_project():
     return jsonify({'data': {'ok': True}})
 
 
+@app.put('/api/projects/<int:project_id>')
+def update_project(project_id):
+    b = request.json or {}
+    c = conn()
+    cur = c.execute('''
+      UPDATE projects
+      SET title=?, goal=?, status=?, priority=?, milestone=?, blocker=?, next_action=?, updated_at=?
+      WHERE id=?
+    ''', (
+      b.get('title'), b.get('goal'), b.get('status', 'planned'), b.get('priority', 'medium'),
+      b.get('milestone'), b.get('blocker'), b.get('next_action'), now_iso(), project_id
+    ))
+    c.commit()
+    updated = cur.rowcount
+    c.close()
+    if not updated:
+      return jsonify({'error': 'project not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
 @app.get('/api/insights')
 def get_insights():
     c = conn()
