@@ -283,6 +283,26 @@ def create_people():
     return jsonify({'data': {'ok': True}})
 
 
+@app.put('/api/people/<int:person_id>')
+def update_people(person_id):
+    b = request.json or {}
+    c = conn()
+    cur = c.execute('''
+      UPDATE people
+      SET name=?, role=?, team=?, relationship_level=?, current_topics=?, value_exchange=?, next_followup_date=?
+      WHERE id=?
+    ''', (
+      b.get('name'), b.get('role'), b.get('team'), b.get('relationship_level'),
+      b.get('current_topics'), b.get('value_exchange'), b.get('next_followup_date'), person_id
+    ))
+    c.commit()
+    updated = cur.rowcount
+    c.close()
+    if not updated:
+        return jsonify({'error': 'person not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
 @app.get('/api/reflections/today')
 def get_reflection_today():
     d = request.args.get('date') or str(date.today())
@@ -389,4 +409,4 @@ def ai_generate_update():
 
 if __name__ == '__main__':
     init_db()
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)
