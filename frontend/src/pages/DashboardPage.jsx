@@ -3,8 +3,10 @@ import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select,
 import { api } from '../api/client'
 
 export default function DashboardPage() {
+  const todayCT = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Chicago' }).format(new Date())
+
   const [form, setForm] = useState({
-    date: new Date().toISOString().slice(0, 10),
+    date: todayCT(),
     top3: '',
     blockers: '',
     manager_sync: '',

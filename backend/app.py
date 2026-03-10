@@ -3,6 +3,7 @@ from flask_cors import CORS
 import sqlite3
 from pathlib import Path
 from datetime import datetime, date
+from zoneinfo import ZoneInfo
 import os
 import json
 import requests
@@ -14,6 +15,7 @@ BASE = Path(__file__).resolve().parent
 DB_PATH = BASE / 'careeros.db'
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '').strip()
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o-mini')
+APP_TZ = ZoneInfo('America/Chicago')
 
 
 def conn():
@@ -23,7 +25,11 @@ def conn():
 
 
 def now_iso():
-    return datetime.utcnow().isoformat()
+    return datetime.now(APP_TZ).isoformat()
+
+
+def today_ct():
+    return datetime.now(APP_TZ).date().isoformat()
 
 
 def init_db():
@@ -351,7 +357,7 @@ def update_people(person_id):
 
 @app.get('/api/reflections/today')
 def get_reflection_today():
-    d = request.args.get('date') or str(date.today())
+    d = request.args.get('date') or today_ct()
     c = conn()
     row = c.execute('SELECT * FROM reflections WHERE date = ?', (d,)).fetchone()
     c.close()
@@ -361,7 +367,7 @@ def get_reflection_today():
 @app.post('/api/reflections/today')
 def upsert_reflection_today():
     b = request.json or {}
-    d = b.get('date') or str(date.today())
+    d = b.get('date') or today_ct()
     payload = (
         b.get('top3', ''), b.get('blockers', ''), b.get('manager_sync', ''), b.get('weekly_progress', ''),
         b.get('wins', ''), b.get('lessons', ''), b.get('tomorrow_focus', ''), now_iso(), d
