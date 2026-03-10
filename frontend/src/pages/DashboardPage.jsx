@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table } from 'antd'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 
 export default function DashboardPage() {
@@ -201,7 +203,9 @@ export default function DashboardPage() {
 
       {!!syncDraft && (
         <Card title="Upward Sync Draft" style={{ marginTop: 16 }}>
-          <Typography.Paragraph style={{ whiteSpace: 'pre-wrap' }}>{syncDraft}</Typography.Paragraph>
+          <div className="markdown-body">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{syncDraft}</ReactMarkdown>
+          </div>
         </Card>
       )}
 
@@ -213,7 +217,15 @@ export default function DashboardPage() {
           columns={[
             { title: 'Date', dataIndex: 'date', width: 120 },
             { title: 'Lang', dataIndex: 'language', width: 100 },
-            { title: 'Content', dataIndex: 'content', render: (v) => <Typography.Text>{v}</Typography.Text> },
+            {
+              title: 'Content',
+              dataIndex: 'content',
+              render: (v) => (
+                <div className="markdown-body" style={{ maxWidth: 720 }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{v || ''}</ReactMarkdown>
+                </div>
+              )
+            },
             { title: 'Saved At', dataIndex: 'created_at', width: 220 },
           ]}
         />

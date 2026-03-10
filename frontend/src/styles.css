@@ -1,6 +1,11 @@
 body { margin: 0; background: #f5f7fb; color: #111827; }
 * { box-sizing: border-box; }
 
+.markdown-body p { margin: 0 0 8px; }
+.markdown-body ul, .markdown-body ol { margin: 0 0 8px 18px; }
+.markdown-body li { margin-bottom: 4px; }
+.markdown-body code { background: #f3f4f6; padding: 1px 4px; border-radius: 4px; }
+
 @media (max-width: 768px) {
   .ant-card { border-radius: 10px; }
   .ant-typography h3 { font-size: 22px !important; }
