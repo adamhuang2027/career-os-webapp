@@ -76,8 +76,20 @@ export default function DashboardPage() {
       weekly_progress: form.weekly_progress,
       language: syncLang,
     })
-    setSyncDraft(data.data.output)
-    message.success(data.data.fallback ? 'Generated (fallback template)' : 'Generated with OpenAI')
+    const output = data.data.output
+    setSyncDraft(output)
+
+    await api.post('/upward-syncs', {
+      date: form.date,
+      language: syncLang,
+      content: output,
+      source_top3: form.top3,
+      source_blockers: form.blockers,
+      source_weekly_progress: form.weekly_progress,
+    })
+    loadSyncHistory()
+
+    message.success(data.data.fallback ? 'Generated and saved (fallback template)' : 'Generated and saved with OpenAI')
   }
 
   const saveUpwardSync = async () => {
