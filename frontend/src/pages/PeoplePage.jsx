@@ -99,6 +99,54 @@ export default function PeoplePage() {
     }))
   }, [items])
 
+  const networkGraph = useMemo(() => {
+    const width = 980
+    const height = 520
+    const cx = width / 2
+    const cy = height / 2
+
+    const people = items.slice(0, 24)
+    const teams = [...new Set(people.map(p => p.team || 'Unknown'))]
+
+    const teamRadius = Math.min(width, height) * 0.38
+    const personRadius = Math.min(width, height) * 0.24
+
+    const teamNodes = teams.map((team, i) => {
+      const angle = (2 * Math.PI * i) / Math.max(teams.length, 1)
+      return {
+        id: `team-${team}`,
+        type: 'team',
+        label: team,
+        x: cx + teamRadius * Math.cos(angle),
+        y: cy + teamRadius * Math.sin(angle),
+      }
+    })
+
+    const personNodes = people.map((p, i) => {
+      const angle = (2 * Math.PI * i) / Math.max(people.length, 1)
+      return {
+        id: `person-${p.id}`,
+        type: 'person',
+        label: p.name || `P${p.id}`,
+        relation: p.relationship_level || 'weak',
+        team: p.team || 'Unknown',
+        x: cx + personRadius * Math.cos(angle),
+        y: cy + personRadius * Math.sin(angle),
+      }
+    })
+
+    const centerNode = { id: 'me', type: 'me', label: 'Adam', x: cx, y: cy }
+
+    const edges = []
+    for (const p of personNodes) {
+      edges.push({ from: centerNode, to: p, type: 'ownership' })
+      const t = teamNodes.find(x => x.label === p.team)
+      if (t) edges.push({ from: p, to: t, type: 'team' })
+    }
+
+    return { width, height, centerNode, personNodes, teamNodes, edges }
+  }, [items])
+
   return (
     <>
       <Typography.Title level={3}>People / Resource Map</Typography.Title>
@@ -162,6 +210,51 @@ export default function PeoplePage() {
           </Card>
         </Col>
       </Row>
+
+      <Card title="Relationship Graph (Nodes & Edges)" style={{ marginBottom: 16 }}>
+        <Typography.Text type="secondary">Center = Adam. Person nodes connect to Adam and to their Team node.</Typography.Text>
+        <div style={{ overflowX: 'auto', marginTop: 10, border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }}>
+          <svg width={networkGraph.width} height={networkGraph.height}>
+            {networkGraph.edges.map((e, i) => (
+              <line
+                key={i}
+                x1={e.from.x}
+                y1={e.from.y}
+                x2={e.to.x}
+                y2={e.to.y}
+                stroke={e.type === 'team' ? '#93c5fd' : '#cbd5e1'}
+                strokeDasharray={e.type === 'team' ? '4 4' : '0'}
+                strokeWidth={e.type === 'team' ? 1.2 : 1.6}
+              />
+            ))}
+
+            {networkGraph.teamNodes.map((n) => (
+              <g key={n.id}>
+                <circle cx={n.x} cy={n.y} r={16} fill="#e0f2fe" stroke="#0284c7" />
+                <text x={n.x} y={n.y + 34} textAnchor="middle" fontSize="11" fill="#0f172a">{n.label}</text>
+              </g>
+            ))}
+
+            {networkGraph.personNodes.map((n) => (
+              <g key={n.id}>
+                <circle
+                  cx={n.x}
+                  cy={n.y}
+                  r={11}
+                  fill={n.relation === 'strong' ? '#86efac' : n.relation === 'medium' ? '#fde68a' : '#e5e7eb'}
+                  stroke="#334155"
+                />
+                <text x={n.x} y={n.y - 16} textAnchor="middle" fontSize="10" fill="#0f172a">{n.label}</text>
+              </g>
+            ))}
+
+            <g>
+              <circle cx={networkGraph.centerNode.x} cy={networkGraph.centerNode.y} r={18} fill="#2563eb" />
+              <text x={networkGraph.centerNode.x} y={networkGraph.centerNode.y + 4} textAnchor="middle" fontSize="11" fill="#fff">Adam</text>
+            </g>
+          </svg>
+        </div>
+      </Card>
 
       <Card title="Network Snapshot (Top Contacts by Team)" style={{ marginBottom: 16 }}>
         <Row gutter={[12, 12]}>
