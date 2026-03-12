@@ -118,6 +118,17 @@ def init_db():
       source_weekly_progress TEXT,
       created_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS people_connect_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER DEFAULT 1,
+      person_id INTEGER NOT NULL,
+      connect_date TEXT NOT NULL,
+      channel TEXT,
+      summary TEXT,
+      notes TEXT,
+      created_at TEXT
+    );
     ''')
 
     # lightweight migration for existing DBs
@@ -314,7 +325,16 @@ def ai_generate_insight():
 @app.get('/api/people')
 def get_people():
     c = conn()
-    rows = c.execute('SELECT * FROM people ORDER BY id DESC').fetchall()
+    rows = c.execute('''
+      SELECT p.*, COALESCE(cl.connect_count, 0) AS connect_count, cl.last_connect_date
+      FROM people p
+      LEFT JOIN (
+        SELECT person_id, COUNT(*) AS connect_count, MAX(connect_date) AS last_connect_date
+        FROM people_connect_logs
+        GROUP BY person_id
+      ) cl ON p.id = cl.person_id
+      ORDER BY p.id DESC
+    ''').fetchall()
     c.close()
     return jsonify({'data': rows_to_dict(rows)})
 
@@ -352,6 +372,39 @@ def update_people(person_id):
     c.close()
     if not updated:
         return jsonify({'error': 'person not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
+@app.get('/api/people/<int:person_id>/connect-logs')
+def get_people_connect_logs(person_id):
+    c = conn()
+    rows = c.execute('''
+      SELECT * FROM people_connect_logs
+      WHERE person_id = ?
+      ORDER BY connect_date DESC, id DESC
+      LIMIT 200
+    ''', (person_id,)).fetchall()
+    c.close()
+    return jsonify({'data': rows_to_dict(rows)})
+
+
+@app.post('/api/people/<int:person_id>/connect-logs')
+def create_people_connect_log(person_id):
+    b = request.json or {}
+    c = conn()
+    c.execute('''
+      INSERT INTO people_connect_logs(person_id, connect_date, channel, summary, notes, created_at)
+      VALUES(?,?,?,?,?,?)
+    ''', (
+      person_id,
+      b.get('connect_date') or today_ct(),
+      b.get('channel'),
+      b.get('summary'),
+      b.get('notes'),
+      now_iso()
+    ))
+    c.commit()
+    c.close()
     return jsonify({'data': {'ok': True}})
 
 

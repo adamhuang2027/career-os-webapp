@@ -7,7 +7,10 @@ export default function PeoplePage() {
   const [items, setItems] = useState([])
   const [form] = Form.useForm()
   const [editForm] = Form.useForm()
+  const [connectForm] = Form.useForm()
   const [editing, setEditing] = useState(null)
+  const [connectTarget, setConnectTarget] = useState(null)
+  const [connectLogs, setConnectLogs] = useState([])
 
   const load = async () => {
     const { data } = await api.get('/people')
@@ -40,6 +43,29 @@ export default function PeoplePage() {
     })
     message.success('Contact updated')
     setEditing(null)
+    load()
+  }
+
+  const openConnectLogs = async (row) => {
+    setConnectTarget(row)
+    connectForm.setFieldsValue({ connect_date: dayjs(), channel: 'Slack' })
+    const { data } = await api.get(`/people/${row.id}/connect-logs`)
+    setConnectLogs(data.data || [])
+  }
+
+  const saveConnectLog = async () => {
+    const values = await connectForm.validateFields()
+    await api.post(`/people/${connectTarget.id}/connect-logs`, {
+      connect_date: values.connect_date?.format('YYYY-MM-DD'),
+      channel: values.channel,
+      summary: values.summary,
+      notes: values.notes,
+    })
+    connectForm.resetFields(['summary', 'notes'])
+    connectForm.setFieldValue('connect_date', dayjs())
+    message.success('Connect log saved')
+    const { data } = await api.get(`/people/${connectTarget.id}/connect-logs`)
+    setConnectLogs(data.data || [])
     load()
   }
 
@@ -91,10 +117,7 @@ export default function PeoplePage() {
     return Object.entries(map).map(([team, people]) => ({
       team,
       people: people
-        .sort((a, b) => {
-          const score = { strong: 3, medium: 2, weak: 1 }
-          return (score[b.relationship_level] || 1) - (score[a.relationship_level] || 1)
-        })
+        .sort((a, b) => (b.connect_count || 0) - (a.connect_count || 0))
         .slice(0, 3)
     }))
   }, [items])
@@ -130,6 +153,7 @@ export default function PeoplePage() {
         label: p.name || `P${p.id}`,
         relation: p.relationship_level || 'weak',
         team: p.team || 'Unknown',
+        connectCount: Number(p.connect_count || 0),
         x: cx + personRadius * Math.cos(angle),
         y: cy + personRadius * Math.sin(angle),
       }
@@ -139,9 +163,9 @@ export default function PeoplePage() {
 
     const edges = []
     for (const p of personNodes) {
-      edges.push({ from: centerNode, to: p, type: 'ownership' })
+      edges.push({ from: centerNode, to: p, type: 'ownership', strength: Math.min(6, 1 + p.connectCount * 0.5) })
       const t = teamNodes.find(x => x.label === p.team)
-      if (t) edges.push({ from: p, to: t, type: 'team' })
+      if (t) edges.push({ from: p, to: t, type: 'team', strength: 1 })
     }
 
     return { width, height, centerNode, personNodes, teamNodes, edges }
@@ -212,7 +236,7 @@ export default function PeoplePage() {
       </Row>
 
       <Card title="Relationship Graph (Nodes & Edges)" style={{ marginBottom: 16 }}>
-        <Typography.Text type="secondary">Center = Adam. Person nodes connect to Adam and to their Team node.</Typography.Text>
+        <Typography.Text type="secondary">Edge thickness from Adam to each person is based on connect count.</Typography.Text>
         <div style={{ overflowX: 'auto', marginTop: 10, border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }}>
           <svg width={networkGraph.width} height={networkGraph.height}>
             {networkGraph.edges.map((e, i) => (
@@ -222,9 +246,9 @@ export default function PeoplePage() {
                 y1={e.from.y}
                 x2={e.to.x}
                 y2={e.to.y}
-                stroke={e.type === 'team' ? '#93c5fd' : '#cbd5e1'}
+                stroke={e.type === 'team' ? '#93c5fd' : '#94a3b8'}
                 strokeDasharray={e.type === 'team' ? '4 4' : '0'}
-                strokeWidth={e.type === 'team' ? 1.2 : 1.6}
+                strokeWidth={e.strength}
               />
             ))}
 
@@ -240,11 +264,11 @@ export default function PeoplePage() {
                 <circle
                   cx={n.x}
                   cy={n.y}
-                  r={11}
+                  r={Math.min(18, 10 + n.connectCount * 0.5)}
                   fill={n.relation === 'strong' ? '#86efac' : n.relation === 'medium' ? '#fde68a' : '#e5e7eb'}
                   stroke="#334155"
                 />
-                <text x={n.x} y={n.y - 16} textAnchor="middle" fontSize="10" fill="#0f172a">{n.label}</text>
+                <text x={n.x} y={n.y - 18} textAnchor="middle" fontSize="10" fill="#0f172a">{n.label} ({n.connectCount})</text>
               </g>
             ))}
 
@@ -265,6 +289,7 @@ export default function PeoplePage() {
                   <div key={p.id} style={{ marginBottom: 8 }}>
                     <Typography.Text>{p.name}</Typography.Text>
                     <Tag style={{ marginLeft: 8 }} color={p.relationship_level === 'strong' ? 'green' : p.relationship_level === 'medium' ? 'gold' : 'default'}>{p.relationship_level || 'weak'}</Tag>
+                    <Tag color="blue">connects: {p.connect_count || 0}</Tag>
                   </div>
                 ))}
               </Card>
@@ -295,8 +320,16 @@ export default function PeoplePage() {
             { title: 'Role', dataIndex: 'role' },
             { title: 'Team', dataIndex: 'team' },
             { title: 'Relationship', dataIndex: 'relationship_level' },
-            { title: 'Next Follow-up', dataIndex: 'next_followup_date' },
-            { title: 'Action', key: 'action', width: 100, render: (_, row) => <Button size="small" onClick={() => openEdit(row)}>Edit</Button> }
+            { title: 'Connect Count', dataIndex: 'connect_count', width: 120 },
+            { title: 'Last Connect', dataIndex: 'last_connect_date', width: 130 },
+            {
+              title: 'Action', key: 'action', width: 220, render: (_, row) => (
+                <Space>
+                  <Button size="small" onClick={() => openEdit(row)}>Edit</Button>
+                  <Button size="small" onClick={() => openConnectLogs(row)}>Connect Logs</Button>
+                </Space>
+              )
+            }
           ]}
         />
       </Card>
@@ -311,6 +344,36 @@ export default function PeoplePage() {
           <Form.Item name="value_exchange" label="Value I Can Offer"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="next_followup_date" label="Next Follow-up"><DatePicker /></Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={connectTarget ? `Connect Logs · ${connectTarget.name}` : 'Connect Logs'}
+        open={!!connectTarget}
+        onCancel={() => setConnectTarget(null)}
+        onOk={saveConnectLog}
+        okText="Add Connect Log"
+        width={900}
+      >
+        <Form layout="vertical" form={connectForm}>
+          <Row gutter={12}>
+            <Col span={8}><Form.Item name="connect_date" label="Date" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="channel" label="Channel"><Select options={[{value:'Slack'},{value:'Teams'},{value:'Email'},{value:'1:1'},{value:'Call'},{value:'Other'}]} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="summary" label="Summary" rules={[{ required: true }]}><Input placeholder="What did you discuss?" /></Form.Item></Col>
+          </Row>
+          <Form.Item name="notes" label="Notes"><Input.TextArea rows={2} placeholder="Key details, blockers, commitments, follow-up" /></Form.Item>
+        </Form>
+
+        <Table
+          rowKey="id"
+          dataSource={connectLogs}
+          pagination={{ pageSize: 6 }}
+          columns={[
+            { title: 'Date', dataIndex: 'connect_date', width: 110 },
+            { title: 'Channel', dataIndex: 'channel', width: 100 },
+            { title: 'Summary', dataIndex: 'summary' },
+            { title: 'Notes', dataIndex: 'notes' },
+          ]}
+        />
       </Modal>
     </>
   )
