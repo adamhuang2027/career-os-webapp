@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import sqlite3
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from zoneinfo import ZoneInfo
 import os
 import json
@@ -129,6 +129,17 @@ def init_db():
       notes TEXT,
       created_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS promotion_evidence (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER DEFAULT 1,
+      evidence_date TEXT NOT NULL,
+      period TEXT,
+      tags TEXT,
+      content TEXT NOT NULL,
+      source_snapshot TEXT,
+      created_at TEXT
+    );
     ''')
 
     # lightweight migration for existing DBs
@@ -161,6 +172,14 @@ def init_db():
 
 def rows_to_dict(rows):
     return [dict(r) for r in rows]
+
+
+def period_start(period: str):
+    now = datetime.now(APP_TZ)
+    if period == 'month':
+        return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # default week (last 7 days)
+    return (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 def call_openai_text(system_prompt: str, user_prompt: str) -> str:
@@ -456,6 +475,84 @@ def get_updates():
     rows = c.execute('SELECT * FROM updates ORDER BY id DESC LIMIT 20').fetchall()
     c.close()
     return jsonify({'data': rows_to_dict(rows)})
+
+
+@app.get('/api/promotion-evidence')
+def get_promotion_evidence():
+    period = (request.args.get('period') or 'week').strip().lower()
+    start_iso = period_start(period).isoformat()
+    c = conn()
+    rows = c.execute('''
+      SELECT * FROM promotion_evidence
+      WHERE created_at >= ?
+      ORDER BY id DESC
+      LIMIT 200
+    ''', (start_iso,)).fetchall()
+    c.close()
+    return jsonify({'data': rows_to_dict(rows)})
+
+
+@app.post('/api/promotion-evidence/generate')
+def generate_promotion_evidence():
+    b = request.json or {}
+    period = (b.get('period') or 'week').strip().lower()
+    language = (b.get('language') or 'en').strip().lower()
+    start_iso = period_start(period).isoformat()
+
+    c = conn()
+    updates_rows = rows_to_dict(c.execute('SELECT * FROM updates WHERE created_at >= ? ORDER BY created_at DESC LIMIT 30', (start_iso,)).fetchall())
+    insights_rows = rows_to_dict(c.execute('SELECT * FROM insights WHERE created_at >= ? ORDER BY created_at DESC LIMIT 30', (start_iso,)).fetchall())
+    reflections_rows = rows_to_dict(c.execute('SELECT * FROM reflections WHERE updated_at >= ? ORDER BY updated_at DESC LIMIT 30', (start_iso,)).fetchall())
+
+    source = {
+      'updates': updates_rows,
+      'insights': insights_rows,
+      'reflections': reflections_rows,
+      'period': period,
+      'start_iso': start_iso,
+    }
+
+    lang_rule = {
+        'en': 'Output in English.',
+        'zh': 'Output in Simplified Chinese.',
+        'bilingual': 'Output concise bilingual Chinese + English.'
+    }.get(language, 'Output in English.')
+
+    try:
+        text = call_openai_text(
+            'You are a promotion coach. Generate 3-6 STAR bullets for promotion evidence. Each bullet should include action and measurable impact where possible. Then add one-line tags from: ownership, reliability, automation, scale, cross-team, business-impact.',
+            f"Data snapshot:\n{json.dumps(source, ensure_ascii=False)[:18000]}\n\n{lang_rule}\nReturn plain text."
+        )
+        fallback = False
+    except Exception:
+        fallback = True
+        text = "- Built and shipped execution artifacts tied to delivery outcomes (ownership, reliability).\n- Improved visibility via structured updates and tracking workflows (cross-team, business-impact).\n- Converted ambiguous work into repeatable systems and templates (automation, scale)."
+
+    tags = 'ownership,reliability,automation,business-impact'
+    c.execute('''
+      INSERT INTO promotion_evidence(evidence_date, period, tags, content, source_snapshot, created_at)
+      VALUES(?,?,?,?,?,?)
+    ''', (today_ct(), period, tags, text, json.dumps(source, ensure_ascii=False), now_iso()))
+    evidence_id = c.execute('SELECT last_insert_rowid() AS id').fetchone()['id']
+    c.commit()
+    c.close()
+
+    return jsonify({'data': {'id': evidence_id, 'content': text, 'tags': tags, 'fallback': fallback}})
+
+
+@app.get('/api/promotion-evidence/export')
+def export_promotion_evidence():
+    period = (request.args.get('period') or 'week').strip().lower()
+    start_iso = period_start(period).isoformat()
+    c = conn()
+    rows = rows_to_dict(c.execute('SELECT * FROM promotion_evidence WHERE created_at >= ? ORDER BY id DESC LIMIT 200', (start_iso,)).fetchall())
+    c.close()
+    lines = [f"Promotion Evidence Export ({period})", f"Generated at: {now_iso()}", ""]
+    for r in rows:
+      lines.append(f"[{r.get('evidence_date')}] tags={r.get('tags')}")
+      lines.append(r.get('content') or '')
+      lines.append('')
+    return jsonify({'data': {'text': "\n".join(lines)}})
 
 
 @app.get('/api/upward-syncs')

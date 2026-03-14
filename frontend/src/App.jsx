@@ -6,6 +6,7 @@ import ProjectsPage from './pages/ProjectsPage'
 import ManagerUpdatePage from './pages/ManagerUpdatePage'
 import InsightsPage from './pages/InsightsPage'
 import PeoplePage from './pages/PeoplePage'
+import PromotionEvidencePage from './pages/PromotionEvidencePage'
 
 const { Sider, Content, Header } = Layout
 const { useBreakpoint } = Grid
@@ -16,6 +17,7 @@ const items = [
   { key: '/manager-update', label: 'Manager Update' },
   { key: '/insights', label: 'Insights' },
   { key: '/people', label: 'People / Resource Map' },
+  { key: '/promotion-evidence', label: 'Promotion Evidence' },
 ]
 
 export default function App() {
@@ -65,6 +67,7 @@ export default function App() {
             <Route path="/manager-update" element={<ManagerUpdatePage />} />
             <Route path="/insights" element={<InsightsPage />} />
             <Route path="/people" element={<PeoplePage />} />
+            <Route path="/promotion-evidence" element={<PromotionEvidencePage />} />
           </Routes>
         </Content>
       </Layout>
