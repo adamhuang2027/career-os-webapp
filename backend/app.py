@@ -427,6 +427,42 @@ def create_people_connect_log(person_id):
     return jsonify({'data': {'ok': True}})
 
 
+@app.put('/api/people/<int:person_id>/connect-logs/<int:log_id>')
+def update_people_connect_log(person_id, log_id):
+    b = request.json or {}
+    c = conn()
+    cur = c.execute('''
+      UPDATE people_connect_logs
+      SET connect_date=?, channel=?, summary=?, notes=?
+      WHERE id=? AND person_id=?
+    ''', (
+      b.get('connect_date') or today_ct(),
+      b.get('channel'),
+      b.get('summary'),
+      b.get('notes'),
+      log_id,
+      person_id
+    ))
+    c.commit()
+    updated = cur.rowcount
+    c.close()
+    if not updated:
+        return jsonify({'error': 'connect log not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
+@app.delete('/api/people/<int:person_id>/connect-logs/<int:log_id>')
+def delete_people_connect_log(person_id, log_id):
+    c = conn()
+    cur = c.execute('DELETE FROM people_connect_logs WHERE id=? AND person_id=?', (log_id, person_id))
+    c.commit()
+    deleted = cur.rowcount
+    c.close()
+    if not deleted:
+        return jsonify({'error': 'connect log not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
 @app.get('/api/reflections/today')
 def get_reflection_today():
     d = request.args.get('date') or today_ct()

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Button, Card, DatePicker, Form, Input, Select, Table, Typography, Modal, Tag, Row, Col, Statistic, message, Progress, List, Space } from 'antd'
+import { Button, Card, DatePicker, Form, Input, Select, Table, Typography, Modal, Tag, Row, Col, Statistic, message, Progress, List, Space, Popconfirm } from 'antd'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
 
@@ -8,9 +8,11 @@ export default function PeoplePage() {
   const [form] = Form.useForm()
   const [editForm] = Form.useForm()
   const [connectForm] = Form.useForm()
+  const [editConnectForm] = Form.useForm()
   const [editing, setEditing] = useState(null)
   const [connectTarget, setConnectTarget] = useState(null)
   const [connectLogs, setConnectLogs] = useState([])
+  const [editingLog, setEditingLog] = useState(null)
 
   const load = async () => {
     const { data } = await api.get('/people')
@@ -46,11 +48,16 @@ export default function PeoplePage() {
     load()
   }
 
+  const refreshConnectLogs = async (personId) => {
+    const { data } = await api.get(`/people/${personId}/connect-logs`)
+    setConnectLogs(data.data || [])
+  }
+
   const openConnectLogs = async (row) => {
     setConnectTarget(row)
+    setEditingLog(null)
     connectForm.setFieldsValue({ connect_date: dayjs(), channel: 'Slack' })
-    const { data } = await api.get(`/people/${row.id}/connect-logs`)
-    setConnectLogs(data.data || [])
+    await refreshConnectLogs(row.id)
   }
 
   const saveConnectLog = async () => {
@@ -64,8 +71,38 @@ export default function PeoplePage() {
     connectForm.resetFields(['summary', 'notes'])
     connectForm.setFieldValue('connect_date', dayjs())
     message.success('Connect log saved')
-    const { data } = await api.get(`/people/${connectTarget.id}/connect-logs`)
-    setConnectLogs(data.data || [])
+    await refreshConnectLogs(connectTarget.id)
+    load()
+  }
+
+  const openEditConnectLog = (row) => {
+    setEditingLog(row)
+    editConnectForm.setFieldsValue({
+      connect_date: row.connect_date ? dayjs(row.connect_date) : dayjs(),
+      channel: row.channel,
+      summary: row.summary,
+      notes: row.notes,
+    })
+  }
+
+  const saveEditConnectLog = async () => {
+    const values = await editConnectForm.validateFields()
+    await api.put(`/people/${connectTarget.id}/connect-logs/${editingLog.id}`, {
+      connect_date: values.connect_date?.format('YYYY-MM-DD'),
+      channel: values.channel,
+      summary: values.summary,
+      notes: values.notes,
+    })
+    message.success('Connect log updated')
+    setEditingLog(null)
+    await refreshConnectLogs(connectTarget.id)
+    load()
+  }
+
+  const deleteConnectLog = async (logId) => {
+    await api.delete(`/people/${connectTarget.id}/connect-logs/${logId}`)
+    message.success('Connect log deleted')
+    await refreshConnectLogs(connectTarget.id)
     load()
   }
 
@@ -349,7 +386,7 @@ export default function PeoplePage() {
       <Modal
         title={connectTarget ? `Connect Logs · ${connectTarget.name}` : 'Connect Logs'}
         open={!!connectTarget}
-        onCancel={() => setConnectTarget(null)}
+        onCancel={() => { setConnectTarget(null); setEditingLog(null) }}
         onOk={saveConnectLog}
         okText="Add Connect Log"
         width={900}
@@ -372,8 +409,35 @@ export default function PeoplePage() {
             { title: 'Channel', dataIndex: 'channel', width: 100 },
             { title: 'Summary', dataIndex: 'summary' },
             { title: 'Notes', dataIndex: 'notes' },
+            {
+              title: 'Action', width: 140, render: (_, row) => (
+                <Space>
+                  <Button size="small" onClick={() => openEditConnectLog(row)}>Edit</Button>
+                  <Popconfirm title="Delete this connect log?" onConfirm={() => deleteConnectLog(row.id)}>
+                    <Button size="small" danger>Delete</Button>
+                  </Popconfirm>
+                </Space>
+              )
+            }
           ]}
         />
+      </Modal>
+
+      <Modal
+        title="Edit Connect Log"
+        open={!!editingLog}
+        onCancel={() => setEditingLog(null)}
+        onOk={saveEditConnectLog}
+        okText="Save Changes"
+      >
+        <Form layout="vertical" form={editConnectForm}>
+          <Row gutter={12}>
+            <Col span={8}><Form.Item name="connect_date" label="Date" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="channel" label="Channel"><Select options={[{value:'Slack'},{value:'Teams'},{value:'Email'},{value:'1:1'},{value:'Call'},{value:'Other'}]} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="summary" label="Summary" rules={[{ required: true }]}><Input /></Form.Item></Col>
+          </Row>
+          <Form.Item name="notes" label="Notes"><Input.TextArea rows={3} /></Form.Item>
+        </Form>
       </Modal>
     </>
   )
