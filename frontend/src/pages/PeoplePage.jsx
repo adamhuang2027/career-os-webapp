@@ -166,7 +166,10 @@ export default function PeoplePage() {
     const cx = width / 2
     const cy = height / 2
 
-    const people = items.slice(0, 24)
+    const scoped = ['week', 'month', 'year'].includes(graphPeriod)
+      ? items.filter(p => Number(p.connect_count || 0) > 0)
+      : items
+    const people = scoped.slice(0, 24)
     const teams = [...new Set(people.map(p => p.team || 'Unknown'))]
 
     const teamRadius = Math.min(width, height) * 0.38
@@ -293,7 +296,7 @@ export default function PeoplePage() {
         }
         style={{ marginBottom: 16 }}
       >
-        <Typography.Text type="secondary">Edge thickness is based on connect count within the selected period.</Typography.Text>
+        <Typography.Text type="secondary">Edge thickness is based on connect count within the selected period. Nodes with zero connects in that period are hidden.</Typography.Text>
         <div style={{ overflowX: 'auto', marginTop: 10, border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }}>
           <svg width={networkGraph.width} height={networkGraph.height}>
             {networkGraph.edges.map((e, i) => (
