@@ -6,6 +6,7 @@ import { api } from '../api/client'
 export default function PeoplePage() {
   const [items, setItems] = useState([])
   const [graphPeriod, setGraphPeriod] = useState('week')
+  const [graphTeam, setGraphTeam] = useState('all')
   const [form] = Form.useForm()
   const [editForm] = Form.useForm()
   const [connectForm] = Form.useForm()
@@ -160,16 +161,31 @@ export default function PeoplePage() {
     }))
   }, [items])
 
+  const graphTeamOptions = useMemo(() => {
+    const teams = [...new Set(items.map(p => p.team || 'Unknown'))]
+    return [{ value: 'all', label: 'All Teams' }, ...teams.map(t => ({ value: t, label: t }))]
+  }, [items])
+
+  useEffect(() => {
+    if (!graphTeamOptions.find(x => x.value === graphTeam)) {
+      setGraphTeam('all')
+    }
+  }, [graphTeamOptions, graphTeam])
+
   const networkGraph = useMemo(() => {
     const width = 980
     const height = 520
     const cx = width / 2
     const cy = height / 2
 
-    const scoped = ['week', 'month', 'year'].includes(graphPeriod)
+    const periodScoped = ['week', 'month', 'year'].includes(graphPeriod)
       ? items.filter(p => Number(p.connect_count || 0) > 0)
       : items
-    const people = scoped.slice(0, 24)
+    const teamScoped = graphTeam === 'all'
+      ? periodScoped
+      : periodScoped.filter(p => (p.team || 'Unknown') === graphTeam)
+
+    const people = teamScoped.slice(0, 24)
     const teams = [...new Set(people.map(p => p.team || 'Unknown'))]
 
     const teamRadius = Math.min(width, height) * 0.38
@@ -210,7 +226,7 @@ export default function PeoplePage() {
     }
 
     return { width, height, centerNode, personNodes, teamNodes, edges }
-  }, [items])
+  }, [items, graphPeriod, graphTeam])
 
   return (
     <>
@@ -291,6 +307,14 @@ export default function PeoplePage() {
                 { value: 'month', label: 'Monthly' },
                 { value: 'year', label: 'Yearly' },
               ]}
+            />
+            <Typography.Text type="secondary">Team</Typography.Text>
+            <Select
+              size="small"
+              value={graphTeam}
+              onChange={setGraphTeam}
+              style={{ width: 160 }}
+              options={graphTeamOptions}
             />
           </Space>
         }
