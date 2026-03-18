@@ -400,12 +400,31 @@ export default function PeoplePage() {
           rowKey="id"
           pagination={false}
           columns={[
-            { title: 'Name', dataIndex: 'name' },
-            { title: 'Role', dataIndex: 'role' },
-            { title: 'Team', dataIndex: 'team' },
-            { title: 'Relationship', dataIndex: 'relationship_level' },
-            { title: `Connect Count (${graphPeriod})`, dataIndex: 'connect_count', width: 160 },
-            { title: 'Last Connect', dataIndex: 'last_connect_date', width: 130 },
+            {
+              title: 'Name', dataIndex: 'name',
+              sorter: (a, b) => (a.name || '').localeCompare(b.name || ''),
+              defaultSortOrder: 'ascend'
+            },
+            {
+              title: 'Role', dataIndex: 'role',
+              sorter: (a, b) => (a.role || '').localeCompare(b.role || '')
+            },
+            {
+              title: 'Team', dataIndex: 'team',
+              sorter: (a, b) => (a.team || '').localeCompare(b.team || '')
+            },
+            {
+              title: 'Relationship', dataIndex: 'relationship_level',
+              sorter: (a, b) => (a.relationship_level || '').localeCompare(b.relationship_level || '')
+            },
+            {
+              title: `Connect Count (${graphPeriod})`, dataIndex: 'connect_count', width: 160,
+              sorter: (a, b) => Number(a.connect_count || 0) - Number(b.connect_count || 0)
+            },
+            {
+              title: 'Last Connect', dataIndex: 'last_connect_date', width: 130,
+              sorter: (a, b) => (a.last_connect_date || '').localeCompare(b.last_connect_date || '')
+            },
             {
               title: 'Action', key: 'action', width: 220, render: (_, row) => (
                 <Space>
