@@ -5,6 +5,7 @@ import { api } from '../api/client'
 
 export default function PeoplePage() {
   const [items, setItems] = useState([])
+  const [graphPeriod, setGraphPeriod] = useState('week')
   const [form] = Form.useForm()
   const [editForm] = Form.useForm()
   const [connectForm] = Form.useForm()
@@ -15,10 +16,10 @@ export default function PeoplePage() {
   const [editingLog, setEditingLog] = useState(null)
 
   const load = async () => {
-    const { data } = await api.get('/people')
+    const { data } = await api.get('/people', { params: { period: graphPeriod } })
     setItems(data.data)
   }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [graphPeriod])
 
   const onFinish = async (values) => {
     await api.post('/people', {
@@ -272,8 +273,27 @@ export default function PeoplePage() {
         </Col>
       </Row>
 
-      <Card title="Relationship Graph (Nodes & Edges)" style={{ marginBottom: 16 }}>
-        <Typography.Text type="secondary">Edge thickness from Adam to each person is based on connect count.</Typography.Text>
+      <Card
+        title="Relationship Graph (Nodes & Edges)"
+        extra={
+          <Space>
+            <Typography.Text type="secondary">Period</Typography.Text>
+            <Select
+              size="small"
+              value={graphPeriod}
+              onChange={setGraphPeriod}
+              style={{ width: 120 }}
+              options={[
+                { value: 'week', label: 'Weekly' },
+                { value: 'month', label: 'Monthly' },
+                { value: 'year', label: 'Yearly' },
+              ]}
+            />
+          </Space>
+        }
+        style={{ marginBottom: 16 }}
+      >
+        <Typography.Text type="secondary">Edge thickness is based on connect count within the selected period.</Typography.Text>
         <div style={{ overflowX: 'auto', marginTop: 10, border: '1px solid #f0f0f0', borderRadius: 8, background: '#fff' }}>
           <svg width={networkGraph.width} height={networkGraph.height}>
             {networkGraph.edges.map((e, i) => (
@@ -357,7 +377,7 @@ export default function PeoplePage() {
             { title: 'Role', dataIndex: 'role' },
             { title: 'Team', dataIndex: 'team' },
             { title: 'Relationship', dataIndex: 'relationship_level' },
-            { title: 'Connect Count', dataIndex: 'connect_count', width: 120 },
+            { title: `Connect Count (${graphPeriod})`, dataIndex: 'connect_count', width: 160 },
             { title: 'Last Connect', dataIndex: 'last_connect_date', width: 130 },
             {
               title: 'Action', key: 'action', width: 220, render: (_, row) => (

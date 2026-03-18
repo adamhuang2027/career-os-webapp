@@ -178,8 +178,19 @@ def period_start(period: str):
     now = datetime.now(APP_TZ)
     if period == 'month':
         return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if period == 'year':
+        return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
     # default week (last 7 days)
     return (now - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+
+def connect_period_start_date(period: str):
+    now = datetime.now(APP_TZ).date()
+    if period == 'month':
+        return now.replace(day=1).isoformat()
+    if period == 'year':
+        return now.replace(month=1, day=1).isoformat()
+    return (now - timedelta(days=6)).isoformat()
 
 
 def call_openai_text(system_prompt: str, user_prompt: str) -> str:
@@ -343,17 +354,34 @@ def ai_generate_insight():
 
 @app.get('/api/people')
 def get_people():
+    period = (request.args.get('period') or 'all').strip().lower()
     c = conn()
-    rows = c.execute('''
-      SELECT p.*, COALESCE(cl.connect_count, 0) AS connect_count, cl.last_connect_date
-      FROM people p
-      LEFT JOIN (
-        SELECT person_id, COUNT(*) AS connect_count, MAX(connect_date) AS last_connect_date
-        FROM people_connect_logs
-        GROUP BY person_id
-      ) cl ON p.id = cl.person_id
-      ORDER BY p.id DESC
-    ''').fetchall()
+
+    if period in ('week', 'month', 'year'):
+        start_date = connect_period_start_date(period)
+        rows = c.execute('''
+          SELECT p.*, COALESCE(cl.connect_count, 0) AS connect_count, cl.last_connect_date
+          FROM people p
+          LEFT JOIN (
+            SELECT person_id, COUNT(*) AS connect_count, MAX(connect_date) AS last_connect_date
+            FROM people_connect_logs
+            WHERE connect_date >= ?
+            GROUP BY person_id
+          ) cl ON p.id = cl.person_id
+          ORDER BY p.id DESC
+        ''', (start_date,)).fetchall()
+    else:
+        rows = c.execute('''
+          SELECT p.*, COALESCE(cl.connect_count, 0) AS connect_count, cl.last_connect_date
+          FROM people p
+          LEFT JOIN (
+            SELECT person_id, COUNT(*) AS connect_count, MAX(connect_date) AS last_connect_date
+            FROM people_connect_logs
+            GROUP BY person_id
+          ) cl ON p.id = cl.person_id
+          ORDER BY p.id DESC
+        ''').fetchall()
+
     c.close()
     return jsonify({'data': rows_to_dict(rows)})
 
