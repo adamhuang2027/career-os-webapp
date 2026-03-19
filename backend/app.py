@@ -69,6 +69,20 @@ def init_db():
       created_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS project_tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER DEFAULT 1,
+      project_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      stage TEXT,
+      status TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      notes TEXT,
+      created_at TEXT,
+      updated_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS insights (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER DEFAULT 1,
@@ -272,6 +286,116 @@ def update_project(project_id):
     if not updated:
       return jsonify({'error': 'project not found'}), 404
     return jsonify({'data': {'ok': True}})
+
+
+@app.get('/api/projects/<int:project_id>/tasks')
+def get_project_tasks(project_id):
+    c = conn()
+    rows = c.execute('''
+      SELECT * FROM project_tasks
+      WHERE project_id=?
+      ORDER BY COALESCE(start_date, '9999-12-31') ASC, id ASC
+    ''', (project_id,)).fetchall()
+    c.close()
+    return jsonify({'data': rows_to_dict(rows)})
+
+
+@app.post('/api/projects/<int:project_id>/tasks')
+def create_project_task(project_id):
+    b = request.json or {}
+    now = now_iso()
+    c = conn()
+    c.execute('''
+      INSERT INTO project_tasks(project_id, title, stage, status, start_date, end_date, notes, created_at, updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?)
+    ''', (
+      project_id,
+      b.get('title'),
+      b.get('stage'),
+      b.get('status', 'planned'),
+      b.get('start_date'),
+      b.get('end_date'),
+      b.get('notes'),
+      now,
+      now
+    ))
+    c.commit()
+    c.close()
+    return jsonify({'data': {'ok': True}})
+
+
+@app.put('/api/projects/<int:project_id>/tasks/<int:task_id>')
+def update_project_task(project_id, task_id):
+    b = request.json or {}
+    c = conn()
+    cur = c.execute('''
+      UPDATE project_tasks
+      SET title=?, stage=?, status=?, start_date=?, end_date=?, notes=?, updated_at=?
+      WHERE id=? AND project_id=?
+    ''', (
+      b.get('title'),
+      b.get('stage'),
+      b.get('status', 'planned'),
+      b.get('start_date'),
+      b.get('end_date'),
+      b.get('notes'),
+      now_iso(),
+      task_id,
+      project_id
+    ))
+    c.commit()
+    updated = cur.rowcount
+    c.close()
+    if not updated:
+        return jsonify({'error': 'task not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
+@app.delete('/api/projects/<int:project_id>/tasks/<int:task_id>')
+def delete_project_task(project_id, task_id):
+    c = conn()
+    cur = c.execute('DELETE FROM project_tasks WHERE id=? AND project_id=?', (task_id, project_id))
+    c.commit()
+    deleted = cur.rowcount
+    c.close()
+    if not deleted:
+        return jsonify({'error': 'task not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
+@app.get('/api/projects/gantt')
+def get_projects_gantt():
+    c = conn()
+    project_rows = rows_to_dict(c.execute('SELECT id, title FROM projects ORDER BY id DESC').fetchall())
+    task_rows = rows_to_dict(c.execute('''
+      SELECT * FROM project_tasks
+      WHERE start_date IS NOT NULL AND start_date != ''
+      ORDER BY start_date ASC, id ASC
+    ''').fetchall())
+    c.close()
+
+    by_project = {}
+    for t in task_rows:
+        by_project.setdefault(t['project_id'], []).append(t)
+
+    data = []
+    for p in project_rows:
+        tasks = by_project.get(p['id'], [])
+        if not tasks:
+            continue
+        starts = [t['start_date'] for t in tasks if t.get('start_date')]
+        ends = [t.get('end_date') or t.get('start_date') for t in tasks if t.get('start_date')]
+        if not starts:
+            continue
+        data.append({
+            'project_id': p['id'],
+            'project_title': p['title'],
+            'project_start': min(starts),
+            'project_end': max(ends),
+            'tasks': tasks,
+        })
+
+    return jsonify({'data': data})
 
 
 @app.get('/api/insights')
