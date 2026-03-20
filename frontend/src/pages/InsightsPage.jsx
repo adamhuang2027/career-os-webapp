@@ -84,6 +84,30 @@ export default function InsightsPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  const handleEvidencePaste = (targetForm) => async (e) => {
+    const items = e.clipboardData?.items || []
+    const imageItem = Array.from(items).find((it) => it.type?.startsWith('image/'))
+    if (!imageItem) return
+
+    e.preventDefault()
+    const file = imageItem.getAsFile()
+    if (!file) return
+
+    if (file.size > 2 * 1024 * 1024) {
+      message.warning('Image is large (>2MB). Consider compressing for better performance.')
+    }
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result
+      const current = targetForm.getFieldValue('evidence') || ''
+      const next = `${current}${current ? '\n\n' : ''}![screenshot](${dataUrl})`
+      targetForm.setFieldValue('evidence', next)
+      message.success('Screenshot pasted into Evidence')
+    }
+    reader.readAsDataURL(file)
+  }
+
   return (
     <>
       <Typography.Title level={3}>Insights</Typography.Title>
@@ -92,7 +116,9 @@ export default function InsightsPage() {
           <Form.Item name="title" label="Title" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="phenomenon" label="Phenomenon"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="hypothesis" label="Hypothesis"><Input.TextArea rows={2} /></Form.Item>
-          <Form.Item name="evidence" label="Evidence"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="evidence" label="Evidence">
+            <Input.TextArea rows={3} onPaste={handleEvidencePaste(form)} placeholder="You can paste screenshot directly here (Ctrl/Cmd+V)." />
+          </Form.Item>
           <Form.Item name="recommendation" label="Recommendation"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="result" label="Result (optional)"><Input.TextArea rows={2} /></Form.Item>
           <Space wrap>
@@ -136,7 +162,9 @@ export default function InsightsPage() {
           <Form.Item name="title" label="Title" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="phenomenon" label="Phenomenon"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="hypothesis" label="Hypothesis"><Input.TextArea rows={2} /></Form.Item>
-          <Form.Item name="evidence" label="Evidence"><Input.TextArea rows={2} /></Form.Item>
+          <Form.Item name="evidence" label="Evidence">
+            <Input.TextArea rows={3} onPaste={handleEvidencePaste(editForm)} placeholder="You can paste screenshot directly here (Ctrl/Cmd+V)." />
+          </Form.Item>
           <Form.Item name="recommendation" label="Recommendation"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="result" label="Result"><Input.TextArea rows={2} /></Form.Item>
           <Space>
