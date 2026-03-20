@@ -190,15 +190,29 @@ export default function PeoplePage() {
     const people = teamScoped.slice(0, 24)
     const teams = [...new Set(people.map(p => p.team || 'Unknown'))]
 
+    const teamConnectTotals = {}
+    for (const p of people) {
+      const team = p.team || 'Unknown'
+      teamConnectTotals[team] = (teamConnectTotals[team] || 0) + Number(p.connect_count || 0)
+    }
+
+    const maxPersonConnect = Math.max(1, ...people.map(p => Number(p.connect_count || 0)))
+    const maxTeamConnect = Math.max(1, ...teams.map(t => Number(teamConnectTotals[t] || 0)))
+
     const teamRadius = Math.min(width, height) * 0.38
     const personRadius = Math.min(width, height) * 0.24
 
     const teamNodes = teams.map((team, i) => {
       const angle = (2 * Math.PI * i) / Math.max(teams.length, 1)
+      const connectTotal = Number(teamConnectTotals[team] || 0)
+      const sizeRatio = connectTotal / maxTeamConnect
+      const nodeR = 12 + sizeRatio * 16
       return {
         id: `team-${team}`,
         type: 'team',
         label: team,
+        connectTotal,
+        r: nodeR,
         x: cx + teamRadius * Math.cos(angle),
         y: cy + teamRadius * Math.sin(angle),
       }
@@ -206,13 +220,17 @@ export default function PeoplePage() {
 
     const personNodes = people.map((p, i) => {
       const angle = (2 * Math.PI * i) / Math.max(people.length, 1)
+      const connectCount = Number(p.connect_count || 0)
+      const sizeRatio = connectCount / maxPersonConnect
+      const nodeR = 9 + sizeRatio * 12
       return {
         id: `person-${p.id}`,
         type: 'person',
         label: p.name || `P${p.id}`,
         relation: p.relationship_level || 'weak',
         team: p.team || 'Unknown',
-        connectCount: Number(p.connect_count || 0),
+        connectCount,
+        r: nodeR,
         x: cx + personRadius * Math.cos(angle),
         y: cy + personRadius * Math.sin(angle),
       }
@@ -280,8 +298,8 @@ export default function PeoplePage() {
 
             {networkGraph.teamNodes.map((n) => (
               <g key={n.id}>
-                <circle cx={n.x} cy={n.y} r={16} fill="#e0f2fe" stroke="#0284c7" />
-                <text x={n.x} y={n.y + 34} textAnchor="middle" fontSize="11" fill="#0f172a">{n.label}</text>
+                <circle cx={n.x} cy={n.y} r={n.r} fill="#e0f2fe" stroke="#0284c7" />
+                <text x={n.x} y={n.y + n.r + 14} textAnchor="middle" fontSize="11" fill="#0f172a">{n.label} ({n.connectTotal})</text>
               </g>
             ))}
 
@@ -290,11 +308,11 @@ export default function PeoplePage() {
                 <circle
                   cx={n.x}
                   cy={n.y}
-                  r={Math.min(18, 10 + n.connectCount * 0.5)}
+                  r={n.r}
                   fill={n.relation === 'strong' ? '#86efac' : n.relation === 'medium' ? '#fde68a' : '#e5e7eb'}
                   stroke="#334155"
                 />
-                <text x={n.x} y={n.y - 18} textAnchor="middle" fontSize="10" fill="#0f172a">{n.label} ({n.connectCount})</text>
+                <text x={n.x} y={n.y - (n.r + 6)} textAnchor="middle" fontSize="10" fill="#0f172a">{n.label} ({n.connectCount})</text>
               </g>
             ))}
 
