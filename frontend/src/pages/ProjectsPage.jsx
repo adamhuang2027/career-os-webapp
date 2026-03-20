@@ -116,8 +116,9 @@ export default function ProjectsPage() {
       const total = Math.max(1, end.diff(start, 'day') + 1)
       return {
         ...p,
+        total_days: total,
         timeline: (
-          <div style={{ minWidth: 420 }}>
+          <div style={{ minWidth: 560 }}>
             {p.tasks.map((t) => {
               const ts = dayjs(t.start_date)
               const te = dayjs(t.end_date || t.start_date)
@@ -125,9 +126,13 @@ export default function ProjectsPage() {
               const width = Math.max(3, (te.diff(ts, 'day') + 1) / total * 100)
               const color = t.status === 'done' ? '#16a34a' : t.status === 'in_progress' ? '#2563eb' : '#94a3b8'
               return (
-                <div key={t.id} style={{ position: 'relative', height: 22, marginBottom: 8, background: '#f3f4f6', borderRadius: 8 }}>
-                  <div style={{ position: 'absolute', left: `${left}%`, width: `${width}%`, height: '100%', borderRadius: 8, background: color }} />
-                  <div style={{ position: 'absolute', left: 8, top: 2, fontSize: 12, color: '#111827' }}>{t.title}</div>
+                <div key={t.id} style={{ position: 'relative', height: 40, marginBottom: 10 }}>
+                  <div style={{ position: 'absolute', left: `${left}%`, top: 0, fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>
+                    {`${ts.format('YYYY-MM-DD')} → ${te.format('YYYY-MM-DD')}`}
+                  </div>
+                  <div style={{ position: 'absolute', left: 0, right: 0, top: 16, height: 22, background: '#f3f4f6', borderRadius: 8 }} />
+                  <div style={{ position: 'absolute', left: `${left}%`, top: 16, width: `${width}%`, height: 22, borderRadius: 8, background: color }} />
+                  <div style={{ position: 'absolute', left: 8, top: 18, fontSize: 12, color: '#111827' }}>{t.title}</div>
                 </div>
               )
             })}
@@ -148,9 +153,10 @@ export default function ProjectsPage() {
           rowKey="project_id"
           pagination={false}
           columns={[
-            { title: 'Project', dataIndex: 'project_title', width: 260 },
+            { title: 'Project', dataIndex: 'project_title', width: 240 },
             { title: 'Start', dataIndex: 'project_start', width: 120 },
             { title: 'End', dataIndex: 'project_end', width: 120 },
+            { title: 'Total Days', dataIndex: 'total_days', width: 110 },
             { title: 'Timeline', dataIndex: 'timeline' },
           ]}
         />
