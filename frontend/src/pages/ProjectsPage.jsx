@@ -156,9 +156,6 @@ export default function ProjectsPage() {
                   <div key={t.id} style={{ position: 'relative', height: 30, marginBottom: 10 }}>
                     <div style={{ position: 'absolute', left: 0, right: 0, top: 4, height: 22, background: '#f3f4f6', borderRadius: 8 }} />
                     <div style={{ position: 'absolute', left: `${left}%`, top: 4, width: `${width}%`, height: 22, borderRadius: 8, background: color }} />
-                    <div style={{ position: 'absolute', left: 8, top: 6, fontSize: 12, color: '#111827' }}>
-                      {t.title} · {`${ts.format('YYYY-MM-DD')} → ${te.format('YYYY-MM-DD')}`}
-                    </div>
                   </div>
                 )
               })}
@@ -193,6 +190,9 @@ export default function ProjectsPage() {
           pagination={false}
           columns={[
             { title: 'Project', dataIndex: 'project_title', width: 200 },
+            { title: 'Start', dataIndex: 'project_start', width: 120 },
+            { title: 'End', dataIndex: 'project_end', width: 120 },
+            { title: 'Total Days', dataIndex: 'total_days', width: 110 },
             {
               title: 'Subtasks', dataIndex: 'subtask_names', width: 220,
               render: (v) => <div style={{ whiteSpace: 'pre-line' }}>{v || '-'}</div>
@@ -201,9 +201,6 @@ export default function ProjectsPage() {
               title: 'Start & Days', dataIndex: 'subtask_time_cost', width: 180,
               render: (v) => <div style={{ whiteSpace: 'pre-line' }}>{v || '-'}</div>
             },
-            { title: 'Start', dataIndex: 'project_start', width: 120 },
-            { title: 'End', dataIndex: 'project_end', width: 120 },
-            { title: 'Total Days', dataIndex: 'total_days', width: 110 },
             { title: 'Timeline', dataIndex: 'timeline' },
           ]}
         />
