@@ -126,6 +126,13 @@ export default function ProjectsPage() {
       return {
         ...p,
         total_days: total,
+        subtask_names: (p.tasks || []).map(t => t.title).join('\n'),
+        subtask_time_cost: (p.tasks || []).map(t => {
+          const ts = dayjs(t.start_date)
+          const te = dayjs(t.end_date || t.start_date)
+          const d = Math.max(1, te.diff(ts, 'day') + 1)
+          return `${ts.format('YYYY-MM-DD')} · ${d}d`
+        }).join('\n'),
         timeline: (
           <div style={{ minWidth: 640 }}>
             <div style={{ position: 'relative', paddingBottom: 26 }}>
@@ -185,7 +192,15 @@ export default function ProjectsPage() {
           rowKey="project_id"
           pagination={false}
           columns={[
-            { title: 'Project', dataIndex: 'project_title', width: 240 },
+            { title: 'Project', dataIndex: 'project_title', width: 200 },
+            {
+              title: 'Subtasks', dataIndex: 'subtask_names', width: 220,
+              render: (v) => <div style={{ whiteSpace: 'pre-line' }}>{v || '-'}</div>
+            },
+            {
+              title: 'Start & Days', dataIndex: 'subtask_time_cost', width: 180,
+              render: (v) => <div style={{ whiteSpace: 'pre-line' }}>{v || '-'}</div>
+            },
             { title: 'Start', dataIndex: 'project_start', width: 120 },
             { title: 'End', dataIndex: 'project_end', width: 120 },
             { title: 'Total Days', dataIndex: 'total_days', width: 110 },
