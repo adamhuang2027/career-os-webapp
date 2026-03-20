@@ -114,28 +114,60 @@ export default function ProjectsPage() {
       const start = dayjs(p.project_start)
       const end = dayjs(p.project_end)
       const total = Math.max(1, end.diff(start, 'day') + 1)
+
+      const monthTicks = []
+      let cursor = start.startOf('month')
+      if (cursor.isBefore(start, 'day')) cursor = cursor.add(1, 'month')
+      while (cursor.isBefore(end) || cursor.isSame(end, 'day')) {
+        monthTicks.push(cursor)
+        cursor = cursor.add(1, 'month')
+      }
+
       return {
         ...p,
         total_days: total,
         timeline: (
-          <div style={{ minWidth: 560 }}>
-            {p.tasks.map((t) => {
-              const ts = dayjs(t.start_date)
-              const te = dayjs(t.end_date || t.start_date)
-              const left = Math.max(0, ts.diff(start, 'day')) / total * 100
-              const width = Math.max(3, (te.diff(ts, 'day') + 1) / total * 100)
-              const color = t.status === 'done' ? '#16a34a' : t.status === 'in_progress' ? '#2563eb' : '#94a3b8'
-              return (
-                <div key={t.id} style={{ position: 'relative', height: 40, marginBottom: 10 }}>
-                  <div style={{ position: 'absolute', left: `${left}%`, top: 0, fontSize: 11, color: '#6b7280', whiteSpace: 'nowrap' }}>
-                    {`${ts.format('YYYY-MM-DD')} → ${te.format('YYYY-MM-DD')}`}
+          <div style={{ minWidth: 640 }}>
+            <div style={{ position: 'relative', paddingBottom: 26 }}>
+              {monthTicks.map((m) => {
+                const x = Math.max(0, m.diff(start, 'day')) / total * 100
+                const yearStart = m.month() === 0
+                return (
+                  <div key={m.format('YYYY-MM')}
+                    style={{ position: 'absolute', left: `${x}%`, top: 0, bottom: 24, width: 1, background: yearStart ? '#6b7280' : '#d1d5db' }}
+                  />
+                )
+              })}
+
+              {p.tasks.map((t) => {
+                const ts = dayjs(t.start_date)
+                const te = dayjs(t.end_date || t.start_date)
+                const left = Math.max(0, ts.diff(start, 'day')) / total * 100
+                const width = Math.max(3, (te.diff(ts, 'day') + 1) / total * 100)
+                const color = t.status === 'done' ? '#16a34a' : t.status === 'in_progress' ? '#2563eb' : '#94a3b8'
+                return (
+                  <div key={t.id} style={{ position: 'relative', height: 30, marginBottom: 10 }}>
+                    <div style={{ position: 'absolute', left: 0, right: 0, top: 4, height: 22, background: '#f3f4f6', borderRadius: 8 }} />
+                    <div style={{ position: 'absolute', left: `${left}%`, top: 4, width: `${width}%`, height: 22, borderRadius: 8, background: color }} />
+                    <div style={{ position: 'absolute', left: 8, top: 6, fontSize: 12, color: '#111827' }}>
+                      {t.title} · {`${ts.format('YYYY-MM-DD')} → ${te.format('YYYY-MM-DD')}`}
+                    </div>
                   </div>
-                  <div style={{ position: 'absolute', left: 0, right: 0, top: 16, height: 22, background: '#f3f4f6', borderRadius: 8 }} />
-                  <div style={{ position: 'absolute', left: `${left}%`, top: 16, width: `${width}%`, height: 22, borderRadius: 8, background: color }} />
-                  <div style={{ position: 'absolute', left: 8, top: 18, fontSize: 12, color: '#111827' }}>{t.title}</div>
-                </div>
-              )
-            })}
+                )
+              })}
+
+              <div style={{ position: 'relative', height: 20, marginTop: 2 }}>
+                {monthTicks.map((m) => {
+                  const x = Math.max(0, m.diff(start, 'day')) / total * 100
+                  const label = m.month() === 0 ? m.format('YYYY-MM') : m.format('MM')
+                  return (
+                    <div key={`label-${m.format('YYYY-MM')}`} style={{ position: 'absolute', left: `${x}%`, top: 2, transform: 'translateX(-10%)', fontSize: 11, color: m.month() === 0 ? '#374151' : '#6b7280' }}>
+                      {label}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         )
       }
