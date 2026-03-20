@@ -17,6 +17,7 @@ export default function ProjectsPage() {
   const [taskProject, setTaskProject] = useState(null)
   const [taskRows, setTaskRows] = useState([])
   const [editingTask, setEditingTask] = useState(null)
+  const [expandedProjectKeys, setExpandedProjectKeys] = useState([])
 
   const load = async () => {
     setLoading(true)
@@ -170,10 +171,23 @@ export default function ProjectsPage() {
 
       return {
         ...p,
+        rowType: 'project',
         total_days: total,
         progress_pct: progressPct,
         timeline: summaryTimeline,
         subtask_rows: subtaskRows,
+        children: subtaskRows.map((s) => ({
+          key: `subtask-${s.id}`,
+          rowType: 'subtask',
+          project_id: p.project_id,
+          project_title: '',
+          subtask_title: s.title,
+          start: s.start,
+          end: s.end,
+          days: s.days,
+          progress_pct: '',
+          timeline: s.bar,
+        })),
       }
     })
   }, [ganttData])
@@ -186,33 +200,51 @@ export default function ProjectsPage() {
         <Table
           loading={loading}
           dataSource={ganttRows}
-          rowKey="project_id"
+          rowKey={(r) => r.rowType === 'subtask' ? r.key : r.project_id}
           pagination={false}
           columns={[
-            { title: 'Project (folder)', dataIndex: 'project_title', width: 220 },
-            { title: 'Start', dataIndex: 'project_start', width: 120 },
-            { title: 'End', dataIndex: 'project_end', width: 120 },
-            { title: 'Total Days', dataIndex: 'total_days', width: 110 },
-            { title: 'Progress', dataIndex: 'progress_pct', width: 100, render: (v) => `${v}%` },
-            { title: 'Timeline', dataIndex: 'timeline' },
+            {
+              title: 'Project / Subtask',
+              width: 240,
+              render: (_, r) => r.rowType === 'subtask' ? r.subtask_title : r.project_title
+            },
+            {
+              title: 'Start',
+              width: 120,
+              render: (_, r) => r.rowType === 'subtask' ? r.start : r.project_start
+            },
+            {
+              title: 'End',
+              width: 120,
+              render: (_, r) => r.rowType === 'subtask' ? r.end : r.project_end
+            },
+            {
+              title: 'Total Days',
+              width: 110,
+              render: (_, r) => r.rowType === 'subtask' ? r.days : r.total_days
+            },
+            {
+              title: 'Progress',
+              width: 100,
+              render: (_, r) => r.rowType === 'subtask' ? '-' : `${r.progress_pct}%`
+            },
+            {
+              title: 'Timeline',
+              dataIndex: 'timeline',
+              render: (v, r) => {
+                if (r.rowType === 'project' && expandedProjectKeys.includes(r.project_id)) return null
+                return v
+              }
+            },
           ]}
           expandable={{
-            rowExpandable: (record) => (record.subtask_rows || []).length > 0,
-            expandedRowRender: (record) => (
-              <Table
-                size="small"
-                dataSource={record.subtask_rows || []}
-                rowKey="id"
-                pagination={false}
-                columns={[
-                  { title: 'Subtask', dataIndex: 'title', width: 260 },
-                  { title: 'Start', dataIndex: 'start', width: 120 },
-                  { title: 'End', dataIndex: 'end', width: 120 },
-                  { title: 'Days', dataIndex: 'days', width: 80 },
-                  { title: 'Timeline', dataIndex: 'bar' },
-                ]}
-              />
-            ),
+            expandedRowKeys: expandedProjectKeys,
+            onExpand: (expanded, record) => {
+              if (record.rowType === 'subtask') return
+              const key = record.project_id
+              setExpandedProjectKeys(prev => expanded ? [...prev, key] : prev.filter(k => k !== key))
+            },
+            rowExpandable: (record) => record.rowType === 'project' && (record.children || []).length > 0,
           }}
         />
       </Card>
