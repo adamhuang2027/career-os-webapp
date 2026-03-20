@@ -114,6 +114,9 @@ export default function ProjectsPage() {
       const start = dayjs(p.project_start)
       const end = dayjs(p.project_end)
       const total = Math.max(1, end.diff(start, 'day') + 1)
+      const tasks = p.tasks || []
+      const doneCount = tasks.filter(t => t.status === 'done').length
+      const progressPct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0
 
       const monthTicks = []
       let cursor = start.startOf('month')
@@ -123,57 +126,54 @@ export default function ProjectsPage() {
         cursor = cursor.add(1, 'month')
       }
 
+      const subtaskRows = tasks.map((t) => {
+        const ts = dayjs(t.start_date)
+        const te = dayjs(t.end_date || t.start_date)
+        const days = Math.max(1, te.diff(ts, 'day') + 1)
+        const left = Math.max(0, ts.diff(start, 'day')) / total * 100
+        const width = Math.max(3, days / total * 100)
+        const color = t.status === 'done' ? '#16a34a' : t.status === 'in_progress' ? '#2563eb' : '#94a3b8'
+        return {
+          id: t.id,
+          title: t.title,
+          start: ts.format('YYYY-MM-DD'),
+          end: te.format('YYYY-MM-DD'),
+          days,
+          bar: (
+            <div style={{ position: 'relative', minWidth: 520, height: 22, background: '#f3f4f6', borderRadius: 8 }}>
+              <div style={{ position: 'absolute', left: `${left}%`, top: 0, width: `${width}%`, height: 22, borderRadius: 8, background: color }} />
+            </div>
+          )
+        }
+      })
+
+      const summaryTimeline = (
+        <div style={{ minWidth: 640 }}>
+          <div style={{ position: 'relative', height: 22, background: '#f3f4f6', borderRadius: 8 }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, width: `${Math.max(3, progressPct)}%`, height: 22, borderRadius: 8, background: '#2563eb' }} />
+          </div>
+          <div style={{ position: 'relative', height: 18, marginTop: 6 }}>
+            {monthTicks.map((m) => {
+              const x = Math.max(0, m.diff(start, 'day')) / total * 100
+              const label = m.month() === 0 ? m.format('YYYY-MM') : m.format('MM')
+              const yearStart = m.month() === 0
+              return (
+                <div key={`label-${m.format('YYYY-MM')}`}>
+                  <div style={{ position: 'absolute', left: `${x}%`, top: -30, width: 1, height: 30, background: yearStart ? '#6b7280' : '#d1d5db' }} />
+                  <div style={{ position: 'absolute', left: `${x}%`, top: 0, transform: 'translateX(-10%)', fontSize: 11, color: yearStart ? '#374151' : '#6b7280' }}>{label}</div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )
+
       return {
         ...p,
         total_days: total,
-        subtask_names: (p.tasks || []).map(t => t.title).join('\n'),
-        subtask_time_cost: (p.tasks || []).map(t => {
-          const ts = dayjs(t.start_date)
-          const te = dayjs(t.end_date || t.start_date)
-          const d = Math.max(1, te.diff(ts, 'day') + 1)
-          return `${ts.format('YYYY-MM-DD')} · ${d}d`
-        }).join('\n'),
-        timeline: (
-          <div style={{ minWidth: 640 }}>
-            <div style={{ position: 'relative', paddingBottom: 26 }}>
-              {monthTicks.map((m) => {
-                const x = Math.max(0, m.diff(start, 'day')) / total * 100
-                const yearStart = m.month() === 0
-                return (
-                  <div key={m.format('YYYY-MM')}
-                    style={{ position: 'absolute', left: `${x}%`, top: 0, bottom: 24, width: 1, background: yearStart ? '#6b7280' : '#d1d5db' }}
-                  />
-                )
-              })}
-
-              {p.tasks.map((t) => {
-                const ts = dayjs(t.start_date)
-                const te = dayjs(t.end_date || t.start_date)
-                const left = Math.max(0, ts.diff(start, 'day')) / total * 100
-                const width = Math.max(3, (te.diff(ts, 'day') + 1) / total * 100)
-                const color = t.status === 'done' ? '#16a34a' : t.status === 'in_progress' ? '#2563eb' : '#94a3b8'
-                return (
-                  <div key={t.id} style={{ position: 'relative', height: 30, marginBottom: 10 }}>
-                    <div style={{ position: 'absolute', left: 0, right: 0, top: 4, height: 22, background: '#f3f4f6', borderRadius: 8 }} />
-                    <div style={{ position: 'absolute', left: `${left}%`, top: 4, width: `${width}%`, height: 22, borderRadius: 8, background: color }} />
-                  </div>
-                )
-              })}
-
-              <div style={{ position: 'relative', height: 20, marginTop: 2 }}>
-                {monthTicks.map((m) => {
-                  const x = Math.max(0, m.diff(start, 'day')) / total * 100
-                  const label = m.month() === 0 ? m.format('YYYY-MM') : m.format('MM')
-                  return (
-                    <div key={`label-${m.format('YYYY-MM')}`} style={{ position: 'absolute', left: `${x}%`, top: 2, transform: 'translateX(-10%)', fontSize: 11, color: m.month() === 0 ? '#374151' : '#6b7280' }}>
-                      {label}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )
+        progress_pct: progressPct,
+        timeline: summaryTimeline,
+        subtask_rows: subtaskRows,
       }
     })
   }, [ganttData])
@@ -189,20 +189,31 @@ export default function ProjectsPage() {
           rowKey="project_id"
           pagination={false}
           columns={[
-            { title: 'Project', dataIndex: 'project_title', width: 200 },
+            { title: 'Project (folder)', dataIndex: 'project_title', width: 220 },
             { title: 'Start', dataIndex: 'project_start', width: 120 },
             { title: 'End', dataIndex: 'project_end', width: 120 },
             { title: 'Total Days', dataIndex: 'total_days', width: 110 },
-            {
-              title: 'Subtasks', dataIndex: 'subtask_names', width: 220,
-              render: (v) => <div style={{ whiteSpace: 'pre-line' }}>{v || '-'}</div>
-            },
-            {
-              title: 'Start & Days', dataIndex: 'subtask_time_cost', width: 180,
-              render: (v) => <div style={{ whiteSpace: 'pre-line' }}>{v || '-'}</div>
-            },
+            { title: 'Progress', dataIndex: 'progress_pct', width: 100, render: (v) => `${v}%` },
             { title: 'Timeline', dataIndex: 'timeline' },
           ]}
+          expandable={{
+            rowExpandable: (record) => (record.subtask_rows || []).length > 0,
+            expandedRowRender: (record) => (
+              <Table
+                size="small"
+                dataSource={record.subtask_rows || []}
+                rowKey="id"
+                pagination={false}
+                columns={[
+                  { title: 'Subtask', dataIndex: 'title', width: 260 },
+                  { title: 'Start', dataIndex: 'start', width: 120 },
+                  { title: 'End', dataIndex: 'end', width: 120 },
+                  { title: 'Days', dataIndex: 'days', width: 80 },
+                  { title: 'Timeline', dataIndex: 'bar' },
+                ]}
+              />
+            ),
+          }}
         />
       </Card>
 
