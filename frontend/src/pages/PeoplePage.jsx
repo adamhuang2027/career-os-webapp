@@ -312,7 +312,6 @@ export default function PeoplePage() {
                   fill={n.relation === 'strong' ? '#86efac' : n.relation === 'medium' ? '#fde68a' : '#e5e7eb'}
                   stroke="#334155"
                 />
-                <text x={n.x} y={n.y - (n.r + 6)} textAnchor="middle" fontSize="10" fill="#0f172a">{n.label} ({n.connectCount})</text>
               </g>
             ))}
 
@@ -320,6 +319,20 @@ export default function PeoplePage() {
               <circle cx={networkGraph.centerNode.x} cy={networkGraph.centerNode.y} r={18} fill="#2563eb" />
               <text x={networkGraph.centerNode.x} y={networkGraph.centerNode.y + 4} textAnchor="middle" fontSize="11" fill="#fff">Adam</text>
             </g>
+
+            {networkGraph.personNodes.map((n) => (
+              <text
+                key={`label-${n.id}`}
+                x={n.x}
+                y={n.y - (n.r + 6)}
+                textAnchor="middle"
+                fontSize="10"
+                fill="#0f172a"
+                style={{ paintOrder: 'stroke', stroke: '#ffffff', strokeWidth: 3, pointerEvents: 'none' }}
+              >
+                {n.label} ({n.connectCount})
+              </text>
+            ))}
           </svg>
         </div>
       </Card>
