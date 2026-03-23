@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table, Popconfirm } from 'antd'
+import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table, Popconfirm, Progress } from 'antd'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
@@ -24,6 +24,12 @@ export default function DashboardPage() {
   const [backlog, setBacklog] = useState([])
   const [newBacklog, setNewBacklog] = useState({ title: '', category: 'weekly', priority: 'medium' })
   const [dragIndex, setDragIndex] = useState(null)
+  const [pomodoroMinutes, setPomodoroMinutes] = useState(25)
+  const [pomodoroTask, setPomodoroTask] = useState('')
+  const [pomodoroRunning, setPomodoroRunning] = useState(false)
+  const [pomodoroStartedAt, setPomodoroStartedAt] = useState(null)
+  const [secondsLeft, setSecondsLeft] = useState(25 * 60)
+  const [pomodoroHistory, setPomodoroHistory] = useState([])
   const loadedRef = useRef(false)
 
   const top3Items = useMemo(() => {
@@ -51,10 +57,16 @@ export default function DashboardPage() {
     setBacklog(data.data || [])
   }
 
+  const loadPomodoroHistory = async () => {
+    const { data } = await api.get('/pomodoro-sessions')
+    setPomodoroHistory(data.data || [])
+  }
+
   useEffect(() => {
     loadToday().finally(() => { loadedRef.current = true })
     loadSyncHistory()
     loadBacklog()
+    loadPomodoroHistory()
   }, [])
 
   useEffect(() => {
@@ -70,6 +82,27 @@ export default function DashboardPage() {
     }, 1200)
     return () => clearTimeout(t)
   }, [form])
+
+  useEffect(() => {
+    if (!pomodoroRunning) return
+    const id = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev <= 1) {
+          setPomodoroRunning(false)
+          completePomodoro('completed', pomodoroMinutes)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [pomodoroRunning, pomodoroMinutes])
+
+  useEffect(() => {
+    if (!pomodoroRunning && !pomodoroStartedAt) {
+      setSecondsLeft(pomodoroMinutes * 60)
+    }
+  }, [pomodoroMinutes, pomodoroRunning, pomodoroStartedAt])
 
   const saveToday = async () => {
     await api.post('/reflections/today', form)
@@ -191,6 +224,53 @@ export default function DashboardPage() {
     updateTop3Items(list)
   }
 
+  const formatClock = (s) => {
+    const mm = String(Math.floor(s / 60)).padStart(2, '0')
+    const ss = String(s % 60).padStart(2, '0')
+    return `${mm}:${ss}`
+  }
+
+  const startPomodoro = () => {
+    if (!pomodoroTask.trim()) return message.warning('Please choose or type a task name')
+    if (!pomodoroStartedAt) setPomodoroStartedAt(new Date().toISOString())
+    setPomodoroRunning(true)
+  }
+
+  const pausePomodoro = () => setPomodoroRunning(false)
+
+  const resetPomodoro = () => {
+    setPomodoroRunning(false)
+    setPomodoroStartedAt(null)
+    setSecondsLeft(pomodoroMinutes * 60)
+  }
+
+  const completePomodoro = async (status = 'completed', manualActualMinutes = null) => {
+    const elapsed = pomodoroMinutes * 60 - secondsLeft
+    const actualMinutes = manualActualMinutes != null
+      ? manualActualMinutes
+      : Math.max(1, Math.round(elapsed / 60))
+
+    try {
+      await api.post('/pomodoro-sessions', {
+        task_title: pomodoroTask,
+        planned_minutes: pomodoroMinutes,
+        actual_minutes: actualMinutes,
+        status,
+        started_at: pomodoroStartedAt,
+        ended_at: new Date().toISOString(),
+      })
+      message.success(status === 'completed' ? 'Pomodoro saved' : 'Pomodoro cancelled and logged')
+      loadPomodoroHistory()
+    } catch (err) {
+      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      message.error(`Pomodoro save failed: ${detail}`)
+    }
+
+    setPomodoroRunning(false)
+    setPomodoroStartedAt(null)
+    setSecondsLeft(pomodoroMinutes * 60)
+  }
+
   return (
     <>
       <Typography.Title level={3}>Today Dashboard</Typography.Title>
@@ -245,6 +325,68 @@ export default function DashboardPage() {
                 </Space>
               )
             }
+          ]}
+        />
+      </Card>
+
+      <Card title="Pomodoro Timer (Task Time Tracking)" style={{ marginBottom: 16 }}>
+        <Space wrap style={{ marginBottom: 12 }}>
+          <Select
+            value={pomodoroTask || undefined}
+            placeholder="Select task"
+            style={{ width: 320 }}
+            showSearch
+            allowClear
+            onChange={(v) => setPomodoroTask(v || '')}
+            options={[
+              ...top3Items.map((t) => ({ value: t, label: `Top3: ${t}` })),
+              ...backlog.filter((b) => b.status !== 'done').map((b) => ({ value: b.title, label: `Backlog: ${b.title}` })),
+            ]}
+          />
+          <Input
+            style={{ width: 260 }}
+            placeholder="Or type task name..."
+            value={pomodoroTask}
+            onChange={(e) => setPomodoroTask(e.target.value)}
+          />
+          <Select
+            value={pomodoroMinutes}
+            style={{ width: 120 }}
+            onChange={(v) => setPomodoroMinutes(v)}
+            options={[{ value: 15, label: '15 min' }, { value: 25, label: '25 min' }, { value: 45, label: '45 min' }, { value: 60, label: '60 min' }]}
+          />
+        </Space>
+
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} md={8}>
+            <Typography.Title level={2} style={{ margin: 0 }}>{formatClock(secondsLeft)}</Typography.Title>
+            <Typography.Text type="secondary">{pomodoroRunning ? 'Running...' : pomodoroStartedAt ? 'Paused' : 'Ready'}</Typography.Text>
+          </Col>
+          <Col xs={24} md={8}>
+            <Progress percent={Math.round(((pomodoroMinutes * 60 - secondsLeft) / (pomodoroMinutes * 60)) * 100)} />
+          </Col>
+          <Col xs={24} md={8}>
+            <Space wrap>
+              {!pomodoroRunning ? <Button type="primary" onClick={startPomodoro}>Start</Button> : <Button onClick={pausePomodoro}>Pause</Button>}
+              <Button onClick={resetPomodoro}>Reset</Button>
+              <Button onClick={() => completePomodoro('completed')}>Finish & Save</Button>
+              <Button danger onClick={() => completePomodoro('cancelled')}>Cancel</Button>
+            </Space>
+          </Col>
+        </Row>
+
+        <Table
+          style={{ marginTop: 12 }}
+          rowKey="id"
+          size="small"
+          dataSource={pomodoroHistory}
+          pagination={{ pageSize: 5 }}
+          columns={[
+            { title: 'Task', dataIndex: 'task_title' },
+            { title: 'Planned', dataIndex: 'planned_minutes', width: 90, render: (v) => `${v}m` },
+            { title: 'Actual', dataIndex: 'actual_minutes', width: 90, render: (v) => `${v}m` },
+            { title: 'Status', dataIndex: 'status', width: 110, render: (v) => <Tag color={v === 'completed' ? 'green' : 'red'}>{v}</Tag> },
+            { title: 'Ended At', dataIndex: 'ended_at', width: 220 },
           ]}
         />
       </Card>

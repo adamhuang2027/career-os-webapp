@@ -146,6 +146,19 @@ def init_db():
       updated_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS pomodoro_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER DEFAULT 1,
+      task_title TEXT,
+      planned_minutes INTEGER NOT NULL DEFAULT 25,
+      actual_minutes INTEGER,
+      status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('completed','cancelled')),
+      started_at TEXT,
+      ended_at TEXT,
+      notes TEXT,
+      created_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS people_connect_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER DEFAULT 1,
@@ -753,6 +766,40 @@ def delete_backlog_task(task_id):
     c.close()
     if not deleted:
         return jsonify({'error': 'backlog task not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
+@app.get('/api/pomodoro-sessions')
+def get_pomodoro_sessions():
+    c = conn()
+    rows = c.execute('SELECT * FROM pomodoro_sessions ORDER BY id DESC LIMIT 50').fetchall()
+    c.close()
+    return jsonify({'data': rows_to_dict(rows)})
+
+
+@app.post('/api/pomodoro-sessions')
+def create_pomodoro_session():
+    b = request.json or {}
+    planned_minutes = int(b.get('planned_minutes') or 25)
+    actual_minutes = int(b.get('actual_minutes') or 0)
+    status = b.get('status') if b.get('status') in ('completed', 'cancelled') else 'completed'
+
+    c = conn()
+    c.execute('''
+      INSERT INTO pomodoro_sessions(task_title, planned_minutes, actual_minutes, status, started_at, ended_at, notes, created_at)
+      VALUES(?,?,?,?,?,?,?,?)
+    ''', (
+      b.get('task_title'),
+      max(1, planned_minutes),
+      max(0, actual_minutes),
+      status,
+      b.get('started_at'),
+      b.get('ended_at') or now_iso(),
+      b.get('notes'),
+      now_iso(),
+    ))
+    c.commit()
+    c.close()
     return jsonify({'data': {'ok': True}})
 
 
