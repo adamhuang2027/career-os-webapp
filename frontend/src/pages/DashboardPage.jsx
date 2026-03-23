@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table, Popconfirm, Progress } from 'antd'
+import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table, Popconfirm, Progress, Switch } from 'antd'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [pomodoroStartedAt, setPomodoroStartedAt] = useState(null)
   const [secondsLeft, setSecondsLeft] = useState(25 * 60)
   const [pomodoroHistory, setPomodoroHistory] = useState([])
+  const [autoNextPomodoro, setAutoNextPomodoro] = useState(true)
   const loadedRef = useRef(false)
 
   const top3Items = useMemo(() => {
@@ -89,14 +90,14 @@ export default function DashboardPage() {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           setPomodoroRunning(false)
-          completePomodoro('completed', pomodoroMinutes)
+          completePomodoro('completed', pomodoroMinutes, { autoNext: autoNextPomodoro })
           return 0
         }
         return prev - 1
       })
     }, 1000)
     return () => clearInterval(id)
-  }, [pomodoroRunning, pomodoroMinutes])
+  }, [pomodoroRunning, pomodoroMinutes, autoNextPomodoro])
 
   useEffect(() => {
     if (!pomodoroRunning && !pomodoroStartedAt) {
@@ -244,7 +245,8 @@ export default function DashboardPage() {
     setSecondsLeft(pomodoroMinutes * 60)
   }
 
-  const completePomodoro = async (status = 'completed', manualActualMinutes = null) => {
+  const completePomodoro = async (status = 'completed', manualActualMinutes = null, options = {}) => {
+    const { autoNext = false } = options
     const elapsed = pomodoroMinutes * 60 - secondsLeft
     const actualMinutes = manualActualMinutes != null
       ? manualActualMinutes
@@ -264,6 +266,13 @@ export default function DashboardPage() {
     } catch (err) {
       const detail = err?.response?.data?.error || err?.message || 'Unknown error'
       message.error(`Pomodoro save failed: ${detail}`)
+    }
+
+    if (status === 'completed' && autoNext && pomodoroTask.trim()) {
+      setPomodoroStartedAt(new Date().toISOString())
+      setSecondsLeft(pomodoroMinutes * 60)
+      setPomodoroRunning(true)
+      return
     }
 
     setPomodoroRunning(false)
@@ -355,6 +364,10 @@ export default function DashboardPage() {
             onChange={(v) => setPomodoroMinutes(v)}
             options={[{ value: 15, label: '15 min' }, { value: 25, label: '25 min' }, { value: 45, label: '45 min' }, { value: 60, label: '60 min' }]}
           />
+          <Space size={6}>
+            <Typography.Text type="secondary">Auto next</Typography.Text>
+            <Switch checked={autoNextPomodoro} onChange={setAutoNextPomodoro} />
+          </Space>
         </Space>
 
         <Row gutter={[16, 16]} align="middle">
