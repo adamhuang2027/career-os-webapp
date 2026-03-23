@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table } from 'antd'
+import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table, Popconfirm } from 'antd'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
@@ -21,6 +21,8 @@ export default function DashboardPage() {
   const [syncDraft, setSyncDraft] = useState('')
   const [syncLang, setSyncLang] = useState('en')
   const [syncHistory, setSyncHistory] = useState([])
+  const [backlog, setBacklog] = useState([])
+  const [newBacklog, setNewBacklog] = useState({ title: '', category: 'weekly', priority: 'medium' })
   const loadedRef = useRef(false)
 
   const loadToday = async () => {
@@ -35,9 +37,15 @@ export default function DashboardPage() {
     setSyncHistory(data.data || [])
   }
 
+  const loadBacklog = async () => {
+    const { data } = await api.get('/backlog-tasks')
+    setBacklog(data.data || [])
+  }
+
   useEffect(() => {
     loadToday().finally(() => { loadedRef.current = true })
     loadSyncHistory()
+    loadBacklog()
   }, [])
 
   useEffect(() => {
@@ -110,12 +118,101 @@ export default function DashboardPage() {
     loadSyncHistory()
   }
 
+  const addBacklogTask = async () => {
+    const title = newBacklog.title.trim()
+    if (!title) return message.warning('Please input backlog task title')
+    await api.post('/backlog-tasks', {
+      title,
+      category: newBacklog.category,
+      priority: newBacklog.priority,
+      status: 'backlog',
+    })
+    setNewBacklog(prev => ({ ...prev, title: '' }))
+    message.success('Backlog task added')
+    loadBacklog()
+  }
+
+  const updateBacklogStatus = async (task, status) => {
+    await api.put(`/backlog-tasks/${task.id}`, { ...task, status })
+    message.success('Backlog updated')
+    loadBacklog()
+  }
+
+  const deleteBacklogTask = async (taskId) => {
+    await api.delete(`/backlog-tasks/${taskId}`)
+    message.success('Backlog task deleted')
+    loadBacklog()
+  }
+
+  const addBacklogToTop3 = (title) => {
+    const lines = (form.top3 || '').split('\n').filter(Boolean)
+    if (lines.length >= 3) {
+      message.warning('Top 3 already has 3 lines. Edit one first.')
+      return
+    }
+    const nextIndex = lines.length + 1
+    const next = `${nextIndex}) ${title} - [Definition of done]`
+    setForm(prev => ({ ...prev, top3: [...lines, next].join('\n') }))
+  }
+
   return (
     <>
       <Typography.Title level={3}>Today Dashboard</Typography.Title>
       <Tag color={autoSaveState === 'saved' ? 'green' : autoSaveState === 'saving' ? 'blue' : autoSaveState === 'error' ? 'red' : 'default'} style={{ marginBottom: 12 }}>
         {autoSaveState === 'saved' ? 'Auto-saved' : autoSaveState === 'saving' ? 'Auto-saving...' : autoSaveState === 'error' ? 'Auto-save failed' : 'Auto-save idle'}
       </Tag>
+      <Card title="Weekly / Long-term Backlog" style={{ marginBottom: 16 }}>
+        <Space wrap style={{ marginBottom: 12 }}>
+          <Input
+            style={{ width: 360 }}
+            placeholder="Add weekly or long-term task..."
+            value={newBacklog.title}
+            onChange={(e) => setNewBacklog(prev => ({ ...prev, title: e.target.value }))}
+            onPressEnter={addBacklogTask}
+          />
+          <Select
+            value={newBacklog.category}
+            onChange={(v) => setNewBacklog(prev => ({ ...prev, category: v }))}
+            options={[{ value: 'weekly', label: 'Weekly' }, { value: 'longterm', label: 'Long-term' }]}
+            style={{ width: 130 }}
+          />
+          <Select
+            value={newBacklog.priority}
+            onChange={(v) => setNewBacklog(prev => ({ ...prev, priority: v }))}
+            options={[{ value: 'high', label: 'High' }, { value: 'medium', label: 'Medium' }, { value: 'low', label: 'Low' }]}
+            style={{ width: 120 }}
+          />
+          <Button type="primary" onClick={addBacklogTask}>Add</Button>
+        </Space>
+
+        <Table
+          rowKey="id"
+          dataSource={backlog}
+          size="small"
+          pagination={{ pageSize: 8 }}
+          columns={[
+            { title: 'Task', dataIndex: 'title' },
+            { title: 'Type', dataIndex: 'category', width: 100, render: (v) => <Tag color={v === 'weekly' ? 'blue' : 'purple'}>{v}</Tag> },
+            { title: 'Priority', dataIndex: 'priority', width: 100 },
+            { title: 'Status', dataIndex: 'status', width: 100, render: (v) => <Tag color={v === 'done' ? 'green' : v === 'doing' ? 'orange' : 'default'}>{v}</Tag> },
+            {
+              title: 'Actions',
+              width: 290,
+              render: (_, row) => (
+                <Space size={4} wrap>
+                  <Button size="small" onClick={() => addBacklogToTop3(row.title)}>Use in Top3</Button>
+                  <Button size="small" onClick={() => updateBacklogStatus(row, 'doing')}>Doing</Button>
+                  <Button size="small" onClick={() => updateBacklogStatus(row, 'done')}>Done</Button>
+                  <Popconfirm title="Delete this backlog task?" onConfirm={() => deleteBacklogTask(row.id)}>
+                    <Button danger size="small">Delete</Button>
+                  </Popconfirm>
+                </Space>
+              )
+            }
+          ]}
+        />
+      </Card>
+
       <Row gutter={[16, 16]}>
         <Col xs={24} md={12}>
           <Card title="Top 3 Priorities">

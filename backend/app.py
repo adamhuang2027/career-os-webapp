@@ -133,6 +133,19 @@ def init_db():
       created_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS backlog_tasks (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER DEFAULT 1,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'weekly' CHECK (category IN ('weekly','longterm')),
+      priority TEXT DEFAULT 'medium',
+      status TEXT NOT NULL DEFAULT 'backlog' CHECK (status IN ('backlog','doing','done')),
+      notes TEXT,
+      target_date TEXT,
+      created_at TEXT,
+      updated_at TEXT
+    );
+
     CREATE TABLE IF NOT EXISTS people_connect_logs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER DEFAULT 1,
@@ -654,6 +667,92 @@ def upsert_reflection_today():
         ))
     c.commit()
     c.close()
+    return jsonify({'data': {'ok': True}})
+
+
+@app.get('/api/backlog-tasks')
+def get_backlog_tasks():
+    category = (request.args.get('category') or '').strip().lower()
+    c = conn()
+    if category in ('weekly', 'longterm'):
+        rows = c.execute('''
+          SELECT * FROM backlog_tasks
+          WHERE category = ?
+          ORDER BY CASE status WHEN 'doing' THEN 0 WHEN 'backlog' THEN 1 ELSE 2 END, id DESC
+        ''', (category,)).fetchall()
+    else:
+        rows = c.execute('''
+          SELECT * FROM backlog_tasks
+          ORDER BY CASE category WHEN 'weekly' THEN 0 ELSE 1 END,
+                   CASE status WHEN 'doing' THEN 0 WHEN 'backlog' THEN 1 ELSE 2 END,
+                   id DESC
+        ''').fetchall()
+    c.close()
+    return jsonify({'data': rows_to_dict(rows)})
+
+
+@app.post('/api/backlog-tasks')
+def create_backlog_task():
+    b = request.json or {}
+    title = (b.get('title') or '').strip()
+    if not title:
+        return jsonify({'error': 'title is required'}), 400
+
+    now = now_iso()
+    c = conn()
+    c.execute('''
+      INSERT INTO backlog_tasks(title, category, priority, status, notes, target_date, created_at, updated_at)
+      VALUES(?,?,?,?,?,?,?,?)
+    ''', (
+      title,
+      b.get('category') if b.get('category') in ('weekly', 'longterm') else 'weekly',
+      b.get('priority', 'medium'),
+      b.get('status') if b.get('status') in ('backlog', 'doing', 'done') else 'backlog',
+      b.get('notes'),
+      b.get('target_date'),
+      now,
+      now,
+    ))
+    c.commit()
+    c.close()
+    return jsonify({'data': {'ok': True}})
+
+
+@app.put('/api/backlog-tasks/<int:task_id>')
+def update_backlog_task(task_id):
+    b = request.json or {}
+    c = conn()
+    cur = c.execute('''
+      UPDATE backlog_tasks
+      SET title=?, category=?, priority=?, status=?, notes=?, target_date=?, updated_at=?
+      WHERE id=?
+    ''', (
+      b.get('title'),
+      b.get('category') if b.get('category') in ('weekly', 'longterm') else 'weekly',
+      b.get('priority', 'medium'),
+      b.get('status') if b.get('status') in ('backlog', 'doing', 'done') else 'backlog',
+      b.get('notes'),
+      b.get('target_date'),
+      now_iso(),
+      task_id,
+    ))
+    c.commit()
+    updated = cur.rowcount
+    c.close()
+    if not updated:
+        return jsonify({'error': 'backlog task not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
+@app.delete('/api/backlog-tasks/<int:task_id>')
+def delete_backlog_task(task_id):
+    c = conn()
+    cur = c.execute('DELETE FROM backlog_tasks WHERE id=?', (task_id,))
+    c.commit()
+    deleted = cur.rowcount
+    c.close()
+    if not deleted:
+        return jsonify({'error': 'backlog task not found'}), 404
     return jsonify({'data': {'ok': True}})
 
 
