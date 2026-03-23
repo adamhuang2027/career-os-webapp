@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+
+const POMODORO_STORAGE_KEY = 'careeros_pomodoro_state_v1'
 import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table, Popconfirm, Progress, Switch } from 'antd'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -28,6 +30,7 @@ export default function DashboardPage() {
   const [pomodoroTask, setPomodoroTask] = useState('')
   const [pomodoroRunning, setPomodoroRunning] = useState(false)
   const [pomodoroStartedAt, setPomodoroStartedAt] = useState(null)
+  const [pomodoroEndAtMs, setPomodoroEndAtMs] = useState(null)
   const [secondsLeft, setSecondsLeft] = useState(25 * 60)
   const [pomodoroHistory, setPomodoroHistory] = useState([])
   const [autoNextPomodoro, setAutoNextPomodoro] = useState(true)
@@ -85,19 +88,53 @@ export default function DashboardPage() {
   }, [form])
 
   useEffect(() => {
-    if (!pomodoroRunning) return
+    try {
+      const raw = localStorage.getItem(POMODORO_STORAGE_KEY)
+      if (!raw) return
+      const s = JSON.parse(raw)
+      if (!s || typeof s !== 'object') return
+
+      setPomodoroMinutes(Number(s.pomodoroMinutes || 25))
+      setPomodoroTask(String(s.pomodoroTask || ''))
+      setPomodoroRunning(Boolean(s.pomodoroRunning))
+      setPomodoroStartedAt(s.pomodoroStartedAt || null)
+      setPomodoroEndAtMs(s.pomodoroEndAtMs || null)
+
+      if (s.pomodoroRunning && s.pomodoroEndAtMs) {
+        const remaining = Math.max(0, Math.ceil((Number(s.pomodoroEndAtMs) - Date.now()) / 1000))
+        setSecondsLeft(remaining)
+      } else {
+        setSecondsLeft(Number(s.secondsLeft || (Number(s.pomodoroMinutes || 25) * 60)))
+      }
+    } catch {
+      // ignore malformed cache
+    }
+  }, [])
+
+  useEffect(() => {
+    const snapshot = {
+      pomodoroMinutes,
+      pomodoroTask,
+      pomodoroRunning,
+      pomodoroStartedAt,
+      pomodoroEndAtMs,
+      secondsLeft,
+    }
+    localStorage.setItem(POMODORO_STORAGE_KEY, JSON.stringify(snapshot))
+  }, [pomodoroMinutes, pomodoroTask, pomodoroRunning, pomodoroStartedAt, pomodoroEndAtMs, secondsLeft])
+
+  useEffect(() => {
+    if (!pomodoroRunning || !pomodoroEndAtMs) return
     const id = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          setPomodoroRunning(false)
-          completePomodoro('completed', pomodoroMinutes, { autoNext: autoNextPomodoro })
-          return 0
-        }
-        return prev - 1
-      })
+      const remaining = Math.max(0, Math.ceil((pomodoroEndAtMs - Date.now()) / 1000))
+      setSecondsLeft(remaining)
+      if (remaining <= 0) {
+        setPomodoroRunning(false)
+        completePomodoro('completed', pomodoroMinutes, { autoNext: autoNextPomodoro })
+      }
     }, 1000)
     return () => clearInterval(id)
-  }, [pomodoroRunning, pomodoroMinutes, autoNextPomodoro])
+  }, [pomodoroRunning, pomodoroEndAtMs, pomodoroMinutes, autoNextPomodoro])
 
   useEffect(() => {
     if (!pomodoroRunning && !pomodoroStartedAt) {
@@ -233,16 +270,27 @@ export default function DashboardPage() {
 
   const startPomodoro = () => {
     if (!pomodoroTask.trim()) return message.warning('Please choose or type a task name')
-    if (!pomodoroStartedAt) setPomodoroStartedAt(new Date().toISOString())
+    const now = Date.now()
+    if (!pomodoroStartedAt) setPomodoroStartedAt(new Date(now).toISOString())
+    setPomodoroEndAtMs(now + secondsLeft * 1000)
     setPomodoroRunning(true)
   }
 
-  const pausePomodoro = () => setPomodoroRunning(false)
+  const pausePomodoro = () => {
+    if (pomodoroEndAtMs) {
+      const remaining = Math.max(0, Math.ceil((pomodoroEndAtMs - Date.now()) / 1000))
+      setSecondsLeft(remaining)
+    }
+    setPomodoroRunning(false)
+    setPomodoroEndAtMs(null)
+  }
 
   const resetPomodoro = () => {
     setPomodoroRunning(false)
     setPomodoroStartedAt(null)
+    setPomodoroEndAtMs(null)
     setSecondsLeft(pomodoroMinutes * 60)
+    localStorage.removeItem(POMODORO_STORAGE_KEY)
   }
 
   const completePomodoro = async (status = 'completed', manualActualMinutes = null, options = {}) => {
@@ -269,15 +317,19 @@ export default function DashboardPage() {
     }
 
     if (status === 'completed' && autoNext && pomodoroTask.trim()) {
-      setPomodoroStartedAt(new Date().toISOString())
+      const now = Date.now()
+      setPomodoroStartedAt(new Date(now).toISOString())
       setSecondsLeft(pomodoroMinutes * 60)
+      setPomodoroEndAtMs(now + pomodoroMinutes * 60 * 1000)
       setPomodoroRunning(true)
       return
     }
 
     setPomodoroRunning(false)
     setPomodoroStartedAt(null)
+    setPomodoroEndAtMs(null)
     setSecondsLeft(pomodoroMinutes * 60)
+    localStorage.removeItem(POMODORO_STORAGE_KEY)
   }
 
   return (
