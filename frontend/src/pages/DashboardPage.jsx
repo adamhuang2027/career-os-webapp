@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, Card, Col, Input, Row, Typography, message, Tag, Space, Select, Table, Popconfirm } from 'antd'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -23,7 +23,16 @@ export default function DashboardPage() {
   const [syncHistory, setSyncHistory] = useState([])
   const [backlog, setBacklog] = useState([])
   const [newBacklog, setNewBacklog] = useState({ title: '', category: 'weekly', priority: 'medium' })
+  const [dragIndex, setDragIndex] = useState(null)
   const loadedRef = useRef(false)
+
+  const top3Items = useMemo(() => {
+    return (form.top3 || '')
+      .split('\n')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(s => s.replace(/^\d+\)\s*/, ''))
+  }, [form.top3])
 
   const loadToday = async () => {
     const { data } = await api.get('/reflections/today', { params: { date: form.date } })
@@ -144,15 +153,27 @@ export default function DashboardPage() {
     loadBacklog()
   }
 
+  const renumberTop3 = (items) => items.map((item, idx) => `${idx + 1}) ${item}`)
+
+  const updateTop3Items = (items) => {
+    const normalized = items.map(s => s.trim()).filter(Boolean).slice(0, 3)
+    setForm(prev => ({ ...prev, top3: renumberTop3(normalized).join('\n') }))
+  }
+
   const addBacklogToTop3 = (title) => {
-    const lines = (form.top3 || '').split('\n').filter(Boolean)
-    if (lines.length >= 3) {
+    if (top3Items.length >= 3) {
       message.warning('Top 3 already has 3 lines. Edit one first.')
       return
     }
-    const nextIndex = lines.length + 1
-    const next = `${nextIndex}) ${title} - [Definition of done]`
-    setForm(prev => ({ ...prev, top3: [...lines, next].join('\n') }))
+    updateTop3Items([...top3Items, `${title} - [Definition of done]`])
+  }
+
+  const reorderTop3 = (from, to) => {
+    if (from == null || to == null || from === to) return
+    const list = [...top3Items]
+    const [moved] = list.splice(from, 1)
+    list.splice(to, 0, moved)
+    updateTop3Items(list)
   }
 
   return (
@@ -223,6 +244,37 @@ export default function DashboardPage() {
               placeholder={'Suggested format:\n1) [Task] - [Definition of done]\n2) [Task] - [Definition of done]\n3) [Task] - [Definition of done]'}
               onChange={(e)=>setForm({...form, top3:e.target.value})}
             />
+
+            {top3Items.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 6 }}>
+                  Drag to reorder (auto renumber):
+                </Typography.Text>
+                {top3Items.map((item, idx) => (
+                  <div
+                    key={`${idx}-${item}`}
+                    draggable
+                    onDragStart={() => setDragIndex(idx)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => {
+                      reorderTop3(dragIndex, idx)
+                      setDragIndex(null)
+                    }}
+                    onDragEnd={() => setDragIndex(null)}
+                    style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 8,
+                      padding: '8px 10px',
+                      marginBottom: 6,
+                      background: dragIndex === idx ? '#f5f5f5' : '#fff',
+                      cursor: 'move',
+                    }}
+                  >
+                    <b>{idx + 1})</b> {item}
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </Col>
 
