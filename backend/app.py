@@ -952,6 +952,8 @@ def ai_generate_update():
     return jsonify({'data': {'output': output, 'update_id': update_id, 'fallback': fallback, 'engine': 'template' if fallback else 'openai'}})
 
 
+# Ensure schema/migrations are applied in both direct run and WSGI server modes.
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     app.run(host='0.0.0.0', port=5001, debug=False, use_reloader=False)

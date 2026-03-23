@@ -130,27 +130,42 @@ export default function DashboardPage() {
   const addBacklogTask = async () => {
     const title = newBacklog.title.trim()
     if (!title) return message.warning('Please input backlog task title')
-    await api.post('/backlog-tasks', {
-      title,
-      category: newBacklog.category,
-      priority: newBacklog.priority,
-      status: 'backlog',
-    })
-    setNewBacklog(prev => ({ ...prev, title: '' }))
-    message.success('Backlog task added')
-    loadBacklog()
+    try {
+      await api.post('/backlog-tasks', {
+        title,
+        category: newBacklog.category,
+        priority: newBacklog.priority,
+        status: 'backlog',
+      })
+      setNewBacklog(prev => ({ ...prev, title: '' }))
+      message.success('Backlog task added')
+      loadBacklog()
+    } catch (err) {
+      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      message.error(`Add failed: ${detail}`)
+    }
   }
 
   const updateBacklogStatus = async (task, status) => {
-    await api.put(`/backlog-tasks/${task.id}`, { ...task, status })
-    message.success('Backlog updated')
-    loadBacklog()
+    try {
+      await api.put(`/backlog-tasks/${task.id}`, { ...task, status })
+      message.success('Backlog updated')
+      loadBacklog()
+    } catch (err) {
+      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      message.error(`Update failed: ${detail}`)
+    }
   }
 
   const deleteBacklogTask = async (taskId) => {
-    await api.delete(`/backlog-tasks/${taskId}`)
-    message.success('Backlog task deleted')
-    loadBacklog()
+    try {
+      await api.delete(`/backlog-tasks/${taskId}`)
+      message.success('Backlog task deleted')
+      loadBacklog()
+    } catch (err) {
+      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      message.error(`Delete failed: ${detail}`)
+    }
   }
 
   const renumberTop3 = (items) => items.map((item, idx) => `${idx + 1}) ${item}`)
