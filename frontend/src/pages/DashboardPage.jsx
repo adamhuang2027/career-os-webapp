@@ -268,6 +268,24 @@ export default function DashboardPage() {
     return `${mm}:${ss}`
   }
 
+  const formatCentralTime = (iso) => {
+    if (!iso) return ''
+    try {
+      return new Intl.DateTimeFormat('en-US', {
+        timeZone: 'America/Chicago',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).format(new Date(iso))
+    } catch {
+      return iso
+    }
+  }
+
   const startPomodoro = () => {
     if (!pomodoroTask.trim()) return message.warning('Please choose or type a task name')
     const now = Date.now()
@@ -451,7 +469,7 @@ export default function DashboardPage() {
             { title: 'Planned', dataIndex: 'planned_minutes', width: 90, render: (v) => `${v}m` },
             { title: 'Actual', dataIndex: 'actual_minutes', width: 90, render: (v) => `${v}m` },
             { title: 'Status', dataIndex: 'status', width: 110, render: (v) => <Tag color={v === 'completed' ? 'green' : 'red'}>{v}</Tag> },
-            { title: 'Ended At', dataIndex: 'ended_at', width: 220 },
+            { title: 'Ended At (CT)', dataIndex: 'ended_at', width: 220, render: (v) => formatCentralTime(v) },
           ]}
         />
       </Card>
