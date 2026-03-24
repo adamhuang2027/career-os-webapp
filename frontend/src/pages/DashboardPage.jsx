@@ -25,6 +25,8 @@ export default function DashboardPage() {
   const [syncHistory, setSyncHistory] = useState([])
   const [backlog, setBacklog] = useState([])
   const [newBacklog, setNewBacklog] = useState({ title: '', category: 'weekly', priority: 'medium' })
+  const [editingBacklogId, setEditingBacklogId] = useState(null)
+  const [editingBacklogTitle, setEditingBacklogTitle] = useState('')
   const [dragIndex, setDragIndex] = useState(null)
   const [pomodoroMinutes, setPomodoroMinutes] = useState(25)
   const [pomodoroTask, setPomodoroTask] = useState('')
@@ -239,6 +241,30 @@ export default function DashboardPage() {
     }
   }
 
+  const startEditBacklogTitle = (task) => {
+    setEditingBacklogId(task.id)
+    setEditingBacklogTitle(task.title || '')
+  }
+
+  const cancelEditBacklogTitle = () => {
+    setEditingBacklogId(null)
+    setEditingBacklogTitle('')
+  }
+
+  const saveBacklogTitle = async (task) => {
+    const title = editingBacklogTitle.trim()
+    if (!title) return message.warning('Task name cannot be empty')
+    try {
+      await api.put(`/backlog-tasks/${task.id}`, { ...task, title })
+      message.success('Task name updated')
+      cancelEditBacklogTitle()
+      loadBacklog()
+    } catch (err) {
+      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      message.error(`Rename failed: ${detail}`)
+    }
+  }
+
   const renumberTop3 = (items) => items.map((item, idx) => `${idx + 1}) ${item}`)
 
   const updateTop3Items = (items) => {
@@ -386,15 +412,35 @@ export default function DashboardPage() {
           size="small"
           pagination={{ pageSize: 8 }}
           columns={[
-            { title: 'Task', dataIndex: 'title' },
+            {
+              title: 'Task',
+              dataIndex: 'title',
+              render: (v, row) => editingBacklogId === row.id ? (
+                <Input
+                  size="small"
+                  value={editingBacklogTitle}
+                  onChange={(e) => setEditingBacklogTitle(e.target.value)}
+                  onPressEnter={() => saveBacklogTitle(row)}
+                  autoFocus
+                />
+              ) : v
+            },
             { title: 'Type', dataIndex: 'category', width: 100, render: (v) => <Tag color={v === 'weekly' ? 'blue' : 'purple'}>{v}</Tag> },
             { title: 'Priority', dataIndex: 'priority', width: 100 },
             { title: 'Status', dataIndex: 'status', width: 100, render: (v) => <Tag color={v === 'done' ? 'green' : v === 'doing' ? 'orange' : 'default'}>{v}</Tag> },
             {
               title: 'Actions',
-              width: 290,
+              width: 360,
               render: (_, row) => (
                 <Space size={4} wrap>
+                  {editingBacklogId === row.id ? (
+                    <>
+                      <Button type="primary" size="small" onClick={() => saveBacklogTitle(row)}>Save</Button>
+                      <Button size="small" onClick={cancelEditBacklogTitle}>Cancel</Button>
+                    </>
+                  ) : (
+                    <Button size="small" onClick={() => startEditBacklogTitle(row)}>Edit Name</Button>
+                  )}
                   <Button size="small" onClick={() => addBacklogToTop3(row.title)}>Use in Top3</Button>
                   <Button size="small" onClick={() => updateBacklogStatus(row, 'doing')}>Doing</Button>
                   <Button size="small" onClick={() => updateBacklogStatus(row, 'done')}>Done</Button>
