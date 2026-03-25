@@ -376,6 +376,17 @@ export default function DashboardPage() {
     localStorage.removeItem(POMODORO_STORAGE_KEY)
   }
 
+  const deletePomodoroSession = async (sessionId) => {
+    try {
+      await api.delete(`/pomodoro-sessions/${sessionId}`)
+      message.success('Pomodoro record deleted')
+      loadPomodoroHistory()
+    } catch (err) {
+      const detail = err?.response?.data?.error || err?.message || 'Unknown error'
+      message.error(`Delete failed: ${detail}`)
+    }
+  }
+
   return (
     <>
       <Typography.Title level={3}>Today Dashboard</Typography.Title>
@@ -516,6 +527,15 @@ export default function DashboardPage() {
             { title: 'Actual', dataIndex: 'actual_minutes', width: 90, render: (v) => `${v}m` },
             { title: 'Status', dataIndex: 'status', width: 110, render: (v) => <Tag color={v === 'completed' ? 'green' : 'red'}>{v}</Tag> },
             { title: 'Ended At (CT)', dataIndex: 'ended_at', width: 220, render: (v) => formatCentralTime(v) },
+            {
+              title: 'Actions',
+              width: 100,
+              render: (_, row) => (
+                <Popconfirm title="Delete this pomodoro record?" onConfirm={() => deletePomodoroSession(row.id)}>
+                  <Button danger size="small">Delete</Button>
+                </Popconfirm>
+              )
+            },
           ]}
         />
       </Card>

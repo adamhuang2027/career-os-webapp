@@ -803,6 +803,18 @@ def create_pomodoro_session():
     return jsonify({'data': {'ok': True}})
 
 
+@app.delete('/api/pomodoro-sessions/<int:session_id>')
+def delete_pomodoro_session(session_id):
+    c = conn()
+    cur = c.execute('DELETE FROM pomodoro_sessions WHERE id=?', (session_id,))
+    c.commit()
+    deleted = cur.rowcount
+    c.close()
+    if not deleted:
+        return jsonify({'error': 'pomodoro session not found'}), 404
+    return jsonify({'data': {'ok': True}})
+
+
 @app.get('/api/updates')
 def get_updates():
     c = conn()
