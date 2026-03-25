@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Typography, message, Tag } from 'antd'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
 
 const DRAFT_KEY = 'careeros:insight-draft'
@@ -141,9 +143,18 @@ export default function InsightsPage() {
           rowKey="id"
           pagination={false}
           columns={[
-            { title: 'Title', dataIndex: 'title' },
-            { title: 'Phenomenon', dataIndex: 'phenomenon' },
-            { title: 'Recommendation', dataIndex: 'recommendation' },
+            { title: 'Title', dataIndex: 'title', width: 180 },
+            { title: 'Phenomenon', dataIndex: 'phenomenon', width: 220 },
+            {
+              title: 'Evidence',
+              dataIndex: 'evidence',
+              render: (v) => (
+                <div className="markdown-body" style={{ maxWidth: 420 }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{v || ''}</ReactMarkdown>
+                </div>
+              )
+            },
+            { title: 'Recommendation', dataIndex: 'recommendation', width: 240 },
             {
               title: 'Action', key: 'action', width: 220,
               render: (_, row) => (

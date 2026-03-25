@@ -5,6 +5,7 @@ body { margin: 0; background: #f5f7fb; color: #111827; }
 .markdown-body ul, .markdown-body ol { margin: 0 0 8px 18px; }
 .markdown-body li { margin-bottom: 4px; }
 .markdown-body code { background: #f3f4f6; padding: 1px 4px; border-radius: 4px; }
+.markdown-body img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e5e7eb; }
 
 @media (max-width: 768px) {
   .ant-card { border-radius: 10px; }

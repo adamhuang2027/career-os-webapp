@@ -44,11 +44,31 @@ export default function ManagerUpdatePage() {
     load()
   }
 
+  const handlePasteImageToRaw = async (e) => {
+    const items = e.clipboardData?.items || []
+    const imageItem = Array.from(items).find((it) => it.type?.startsWith('image/'))
+    if (!imageItem) return
+
+    e.preventDefault()
+    const file = imageItem.getAsFile()
+    if (!file) return
+
+    const dataUrl = await new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.readAsDataURL(file)
+    })
+
+    const marker = `![screenshot](${dataUrl})`
+    setRaw((prev) => `${prev}${prev ? '\n\n' : ''}${marker}`)
+    message.success('Screenshot pasted')
+  }
+
   return (
     <>
       <Typography.Title level={3}>Manager Update</Typography.Title>
       <Card title="Raw Notes" style={{ marginBottom: 16 }}>
-        <Input.TextArea rows={8} value={raw} onChange={(e)=>setRaw(e.target.value)} placeholder="Write what you did this week..." />
+        <Input.TextArea rows={8} value={raw} onChange={(e)=>setRaw(e.target.value)} onPaste={handlePasteImageToRaw} placeholder="Write what you did this week... (you can paste screenshots with Ctrl/Cmd+V)" />
         <Space style={{ marginTop: 12 }} wrap>
           <Select style={{ minWidth: 220 }} allowClear placeholder="Link to project (optional)" value={projectId} onChange={setProjectId} options={projects} />
           <Select value={style} onChange={setStyle} options={[{value:'concise',label:'Concise'},{value:'result',label:'Result-Oriented'},{value:'risk',label:'Risk Alert'}]} />
