@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Button, Card, Form, Input, Select, Space, Table, Typography, message, Modal, DatePicker, Tag } from 'antd'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Button, Card, Form, Input, Select, Space, Table, Typography, message, Modal, DatePicker, Tag, Slider } from 'antd'
 import dayjs from 'dayjs'
 import { api } from '../api/client'
 
@@ -18,6 +18,8 @@ export default function ProjectsPage() {
   const [taskRows, setTaskRows] = useState([])
   const [editingTask, setEditingTask] = useState(null)
   const [expandedProjectKeys, setExpandedProjectKeys] = useState([])
+  const [timelineScrollPct, setTimelineScrollPct] = useState(0)
+  const timelineScrollRef = useRef(null)
 
   const load = async () => {
     setLoading(true)
@@ -111,68 +113,78 @@ export default function ProjectsPage() {
   }
 
   const ganttRows = useMemo(() => {
-    return ganttData.map(p => {
-      const start = dayjs(p.project_start)
-      const end = dayjs(p.project_end)
-      const total = Math.max(1, end.diff(start, 'day') + 1)
+    if (!ganttData.length) return []
+
+    const starts = ganttData.map((p) => dayjs(p.project_start))
+    const ends = ganttData.map((p) => dayjs(p.project_end))
+    const globalStart = starts.reduce((min, d) => (d.isBefore(min) ? d : min), starts[0]).startOf('month')
+    const globalEnd = ends.reduce((max, d) => (d.isAfter(max) ? d : max), ends[0]).endOf('month')
+    const globalTotalDays = Math.max(1, globalEnd.diff(globalStart, 'day') + 1)
+
+    const monthTicks = []
+    let cursor = globalStart.startOf('month')
+    while (cursor.isBefore(globalEnd) || cursor.isSame(globalEnd, 'day')) {
+      monthTicks.push(cursor)
+      cursor = cursor.add(1, 'month')
+    }
+
+    const timelineWidth = Math.max(720, monthTicks.length * 96)
+
+    const renderTimeline = ({ leftPct, widthPct, color, showLabels = false, keyPrefix = 'tick' }) => (
+      <div style={{ width: timelineWidth }}>
+        <div style={{ position: 'relative', height: 22, background: '#f3f4f6', borderRadius: 8, overflow: 'hidden' }}>
+          {monthTicks.map((m) => {
+            const x = Math.max(0, m.diff(globalStart, 'day')) / globalTotalDays * 100
+            const yearStart = m.month() === 0
+            return (
+              <div
+                key={`${keyPrefix}-line-${m.format('YYYY-MM')}`}
+                style={{
+                  position: 'absolute',
+                  left: `${x}%`,
+                  top: 0,
+                  width: 1,
+                  height: 22,
+                  background: yearStart ? '#9ca3af' : '#d1d5db'
+                }}
+              />
+            )
+          })}
+          <div style={{ position: 'absolute', left: `${leftPct}%`, top: 0, width: `${widthPct}%`, height: 22, borderRadius: 8, background: color }} />
+        </div>
+        {showLabels && (
+          <div style={{ position: 'relative', height: 18, marginTop: 6 }}>
+            {monthTicks.map((m) => {
+              const x = Math.max(0, m.diff(globalStart, 'day')) / globalTotalDays * 100
+              const label = m.month() === 0 ? m.format('YYYY-MM') : m.format('MM')
+              const yearStart = m.month() === 0
+              return (
+                <div key={`${keyPrefix}-label-${m.format('YYYY-MM')}`}>
+                  <div style={{ position: 'absolute', left: `${x}%`, top: -30, width: 1, height: 30, background: yearStart ? '#6b7280' : '#d1d5db' }} />
+                  <div style={{ position: 'absolute', left: `${x}%`, top: 0, transform: 'translateX(-10%)', fontSize: 11, color: yearStart ? '#374151' : '#6b7280' }}>{label}</div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+
+    return ganttData.map((p) => {
+      const projectStart = dayjs(p.project_start)
+      const projectEnd = dayjs(p.project_end)
+      const projectTotal = Math.max(1, projectEnd.diff(projectStart, 'day') + 1)
+
       const tasks = p.tasks || []
       const doneCount = tasks.filter(t => t.status === 'done').length
       const progressPct = tasks.length ? Math.round((doneCount / tasks.length) * 100) : 0
-
-      const monthTicks = []
-      let cursor = start.startOf('month')
-      if (cursor.isBefore(start, 'day')) cursor = cursor.add(1, 'month')
-      while (cursor.isBefore(end) || cursor.isSame(end, 'day')) {
-        monthTicks.push(cursor)
-        cursor = cursor.add(1, 'month')
-      }
-
-      const renderTimeline = ({ leftPct, widthPct, color, showLabels = false, keyPrefix = 'tick' }) => (
-        <div style={{ minWidth: 640 }}>
-          <div style={{ position: 'relative', height: 22, background: '#f3f4f6', borderRadius: 8, overflow: 'hidden' }}>
-            {monthTicks.map((m) => {
-              const x = Math.max(0, m.diff(start, 'day')) / total * 100
-              const yearStart = m.month() === 0
-              return (
-                <div
-                  key={`${keyPrefix}-line-${m.format('YYYY-MM')}`}
-                  style={{
-                    position: 'absolute',
-                    left: `${x}%`,
-                    top: 0,
-                    width: 1,
-                    height: 22,
-                    background: yearStart ? '#9ca3af' : '#d1d5db'
-                  }}
-                />
-              )
-            })}
-            <div style={{ position: 'absolute', left: `${leftPct}%`, top: 0, width: `${widthPct}%`, height: 22, borderRadius: 8, background: color }} />
-          </div>
-          {showLabels && (
-            <div style={{ position: 'relative', height: 18, marginTop: 6 }}>
-              {monthTicks.map((m) => {
-                const x = Math.max(0, m.diff(start, 'day')) / total * 100
-                const label = m.month() === 0 ? m.format('YYYY-MM') : m.format('MM')
-                const yearStart = m.month() === 0
-                return (
-                  <div key={`${keyPrefix}-label-${m.format('YYYY-MM')}`}>
-                    <div style={{ position: 'absolute', left: `${x}%`, top: -30, width: 1, height: 30, background: yearStart ? '#6b7280' : '#d1d5db' }} />
-                    <div style={{ position: 'absolute', left: `${x}%`, top: 0, transform: 'translateX(-10%)', fontSize: 11, color: yearStart ? '#374151' : '#6b7280' }}>{label}</div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )
 
       const subtaskRows = tasks.map((t) => {
         const ts = dayjs(t.start_date)
         const te = dayjs(t.end_date || t.start_date)
         const days = Math.max(1, te.diff(ts, 'day') + 1)
-        const left = Math.max(0, ts.diff(start, 'day')) / total * 100
-        const width = Math.max(3, days / total * 100)
+        const left = Math.max(0, ts.diff(globalStart, 'day')) / globalTotalDays * 100
+        const width = Math.max(2, days / globalTotalDays * 100)
         const color = t.status === 'done' ? '#16a34a' : t.status === 'in_progress' ? '#2563eb' : '#94a3b8'
         return {
           id: t.id,
@@ -184,9 +196,11 @@ export default function ProjectsPage() {
         }
       })
 
+      const projectLeft = Math.max(0, projectStart.diff(globalStart, 'day')) / globalTotalDays * 100
+      const projectWidth = Math.max(2, projectTotal / globalTotalDays * 100)
       const summaryTimeline = renderTimeline({
-        leftPct: 0,
-        widthPct: Math.max(3, progressPct),
+        leftPct: projectLeft,
+        widthPct: projectWidth,
         color: '#2563eb',
         showLabels: true,
         keyPrefix: `project-${p.project_id}`,
@@ -195,7 +209,7 @@ export default function ProjectsPage() {
       return {
         ...p,
         rowType: 'project',
-        total_days: total,
+        total_days: projectTotal,
         progress_pct: progressPct,
         timeline: summaryTimeline,
         subtask_rows: subtaskRows,
@@ -220,6 +234,35 @@ export default function ProjectsPage() {
       <Typography.Title level={3}>Projects</Typography.Title>
 
       <Card title="Project Gantt (by sub-task timeline)" style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 10 }}>
+          <Typography.Text type="secondary">Timeline Window</Typography.Text>
+          <Slider
+            min={0}
+            max={100}
+            step={1}
+            value={timelineScrollPct}
+            tooltip={{ formatter: (v) => `${v}%` }}
+            onChange={(v) => {
+              const value = Array.isArray(v) ? v[0] : v
+              setTimelineScrollPct(value)
+              const el = timelineScrollRef.current
+              if (!el) return
+              const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth)
+              el.scrollLeft = (value / 100) * maxScroll
+            }}
+          />
+        </div>
+
+        <div
+          ref={timelineScrollRef}
+          style={{ overflowX: 'auto' }}
+          onScroll={(e) => {
+            const el = e.currentTarget
+            const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth)
+            const pct = maxScroll ? Math.round((el.scrollLeft / maxScroll) * 100) : 0
+            setTimelineScrollPct(pct)
+          }}
+        >
         <Table
           loading={loading}
           dataSource={ganttRows}
@@ -270,6 +313,7 @@ export default function ProjectsPage() {
             rowExpandable: (record) => record.rowType === 'project' && (record.children || []).length > 0,
           }}
         />
+        </div>
       </Card>
 
       <Card title="New Project" style={{ marginBottom: 16 }}>
