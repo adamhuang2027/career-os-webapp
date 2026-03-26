@@ -45,6 +45,75 @@ body {
 .markdown-body code { background: #f3f4f6; padding: 1px 4px; border-radius: 4px; }
 .markdown-body img { max-width: 100%; height: auto; border-radius: 8px; border: 1px solid #e5e7eb; }
 
+body.theme-dark {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+body.theme-dark .ant-layout,
+body.theme-dark .ant-layout-content,
+body.theme-dark .ant-layout-sider {
+  background: #020617;
+}
+
+body.theme-dark .ant-drawer-content,
+body.theme-dark .ant-drawer-header,
+body.theme-dark .ant-drawer-body {
+  background: #0b1220;
+  color: #e2e8f0;
+}
+
+body.theme-dark .premium-page .ant-card,
+body.theme-dark .ant-card {
+  background: #0f172a;
+  border-color: #1f2937;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+body.theme-dark .premium-page .ant-card-head,
+body.theme-dark .ant-card-head {
+  background: #0b1220;
+  border-bottom-color: #1f2937;
+}
+
+body.theme-dark .ant-card-head-title,
+body.theme-dark .ant-typography,
+body.theme-dark .ant-statistic-title,
+body.theme-dark .ant-statistic-content,
+body.theme-dark .ant-list-item-meta-title,
+body.theme-dark .ant-list-item-meta-description,
+body.theme-dark .ant-list-item,
+body.theme-dark .ant-tag,
+body.theme-dark .ant-form-item-label > label {
+  color: #e2e8f0 !important;
+}
+
+body.theme-dark .ant-table {
+  background: #0f172a;
+  color: #cbd5e1;
+}
+
+body.theme-dark .ant-table-thead > tr > th {
+  background: #0b1220 !important;
+  color: #cbd5e1;
+  border-bottom-color: #1f2937;
+}
+
+body.theme-dark .ant-table-tbody > tr > td {
+  background: #0f172a;
+  color: #cbd5e1;
+  border-bottom-color: #1f2937;
+}
+
+body.theme-dark .ant-input,
+body.theme-dark .ant-input-affix-wrapper,
+body.theme-dark .ant-select-selector,
+body.theme-dark .ant-picker {
+  background: #111827 !important;
+  border-color: #334155 !important;
+  color: #e2e8f0 !important;
+}
+
 @media (max-width: 768px) {
   .ant-card { border-radius: 10px; }
   .ant-typography h3 { font-size: 22px !important; }
