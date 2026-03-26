@@ -234,7 +234,7 @@ export default function ProjectsPage() {
   }, [ganttData])
 
   return (
-    <>
+    <div className="premium-page">
       <Typography.Title level={3}>Projects</Typography.Title>
 
       <Card title="Project Gantt (by sub-task timeline)" style={{ marginBottom: 16 }}>
@@ -424,6 +424,6 @@ export default function ProjectsPage() {
           <Form.Item name="notes" label="Notes"><Input.TextArea rows={3} /></Form.Item>
         </Form>
       </Modal>
-    </>
+    </div>
   )
 }

@@ -148,7 +148,7 @@ export default function PeoplePage() {
     })).sort((a, b) => a.strengthScore - b.strengthScore)
 
     return { strong, medium, weak, byTeam, teamRows }
-  }, [items])
+  }, [filteredItems])
 
   const followups = useMemo(() => {
     const today = dayjs().startOf('day')
@@ -267,7 +267,7 @@ export default function PeoplePage() {
   }, [filteredItems, graphPeriod, graphTeam])
 
   return (
-    <>
+    <div className="premium-page">
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }} wrap>
         <Typography.Title level={3} style={{ margin: 0 }}>People / Resource Map</Typography.Title>
         <Input
@@ -579,6 +579,6 @@ export default function PeoplePage() {
           <Form.Item name="notes" label="Notes"><Input.TextArea rows={3} /></Form.Item>
         </Form>
       </Modal>
-    </>
+    </div>
   )
 }

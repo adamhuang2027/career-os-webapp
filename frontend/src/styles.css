@@ -1,5 +1,43 @@
-body { margin: 0; background: #f5f7fb; color: #111827; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 20% -20%, #dbeafe 0%, rgba(219, 234, 254, 0) 60%),
+    radial-gradient(900px 500px at 100% 0%, #e0e7ff 0%, rgba(224, 231, 255, 0) 55%),
+    #f5f7fb;
+  color: #111827;
+}
 * { box-sizing: border-box; }
+
+.premium-page .ant-card {
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+}
+
+.premium-page .ant-card:hover {
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.09);
+}
+
+.premium-page .ant-card-head {
+  border-bottom: 1px solid #eef2ff;
+  background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+}
+
+.premium-page .ant-btn-primary {
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  border: none;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+}
+
+.premium-page .ant-btn-primary:hover {
+  filter: brightness(1.05);
+}
+
+.premium-page .ant-table-thead > tr > th {
+  background: #f8fafc !important;
+  color: #334155;
+  font-weight: 600;
+}
 
 .markdown-body p { margin: 0 0 8px; }
 .markdown-body ul, .markdown-body ol { margin: 0 0 8px 18px; }
