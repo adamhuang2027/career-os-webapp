@@ -196,6 +196,8 @@ export default function ProjectsPage() {
         }
       })
 
+      const actualDays = subtaskRows.reduce((sum, row) => sum + (row.days || 0), 0)
+
       const projectLeft = Math.max(0, projectStart.diff(globalStart, 'day')) / globalTotalDays * 100
       const projectWidth = Math.max(2, projectTotal / globalTotalDays * 100)
       const summaryTimeline = renderTimeline({
@@ -209,7 +211,9 @@ export default function ProjectsPage() {
       return {
         ...p,
         rowType: 'project',
+        date_range: `${projectStart.format('YYYY-MM-DD')} ~ ${projectEnd.format('YYYY-MM-DD')}`,
         total_days: projectTotal,
+        actual_days: actualDays,
         progress_pct: progressPct,
         timeline: summaryTimeline,
         subtask_rows: subtaskRows,
@@ -275,19 +279,14 @@ export default function ProjectsPage() {
               render: (_, r) => r.rowType === 'subtask' ? r.subtask_title : r.project_title
             },
             {
-              title: 'Start',
-              width: 120,
-              render: (_, r) => r.rowType === 'subtask' ? r.start : r.project_start
+              title: 'Date Range',
+              width: 240,
+              render: (_, r) => r.rowType === 'subtask' ? `${r.start} ~ ${r.end}` : r.date_range
             },
             {
-              title: 'End',
+              title: 'Actual Days',
               width: 120,
-              render: (_, r) => r.rowType === 'subtask' ? r.end : r.project_end
-            },
-            {
-              title: 'Total Days',
-              width: 110,
-              render: (_, r) => r.rowType === 'subtask' ? r.days : r.total_days
+              render: (_, r) => r.rowType === 'subtask' ? r.days : r.actual_days
             },
             {
               title: 'Progress',
