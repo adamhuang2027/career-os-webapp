@@ -268,7 +268,16 @@ export default function PeoplePage() {
 
   return (
     <>
-      <Typography.Title level={3}>People / Resource Map</Typography.Title>
+      <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 8 }} wrap>
+        <Typography.Title level={3} style={{ margin: 0 }}>People / Resource Map</Typography.Title>
+        <Input
+          allowClear
+          style={{ width: 320 }}
+          placeholder="Search name/role/team/topic..."
+          value={searchKeyword}
+          onChange={(e) => setSearchKeyword(e.target.value)}
+        />
+      </Space>
 
       <Card
         title="Relationship Graph (Nodes & Edges)"
@@ -435,18 +444,7 @@ export default function PeoplePage() {
 
       <Card
         title="Contact List"
-        extra={(
-          <Space>
-            <Input
-              allowClear
-              style={{ width: 260 }}
-              placeholder="Search name/role/team/topic..."
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-            />
-            <Button type="primary" onClick={() => setShowNewContact(true)}>New Contact</Button>
-          </Space>
-        )}
+        extra={<Button type="primary" onClick={() => setShowNewContact(true)}>New Contact</Button>}
       >
         <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
           Showing {filteredItems.length} / {items.length}
