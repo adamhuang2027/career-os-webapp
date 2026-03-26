@@ -1,12 +1,13 @@
-import { Drawer, Grid, Layout, Menu, Typography } from 'antd'
+import { Drawer, Grid, Layout, Menu, Spin, Typography } from 'antd'
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { useState } from 'react'
-import DashboardPage from './pages/DashboardPage'
-import ProjectsPage from './pages/ProjectsPage'
-import ManagerUpdatePage from './pages/ManagerUpdatePage'
-import InsightsPage from './pages/InsightsPage'
-import PeoplePage from './pages/PeoplePage'
-import PromotionEvidencePage from './pages/PromotionEvidencePage'
+import { lazy, Suspense, useState } from 'react'
+
+const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const ProjectsPage = lazy(() => import('./pages/ProjectsPage'))
+const ManagerUpdatePage = lazy(() => import('./pages/ManagerUpdatePage'))
+const InsightsPage = lazy(() => import('./pages/InsightsPage'))
+const PeoplePage = lazy(() => import('./pages/PeoplePage'))
+const PromotionEvidencePage = lazy(() => import('./pages/PromotionEvidencePage'))
 
 const { Sider, Content, Header } = Layout
 const { useBreakpoint } = Grid
@@ -61,14 +62,16 @@ export default function App() {
           <Typography.Text strong>From doing work → driving impact</Typography.Text>
         </Header>
         <Content style={{ padding: isMobile ? 12 : 24 }}>
-          <Routes>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/projects" element={<ProjectsPage />} />
-            <Route path="/manager-update" element={<ManagerUpdatePage />} />
-            <Route path="/insights" element={<InsightsPage />} />
-            <Route path="/people" element={<PeoplePage />} />
-            <Route path="/promotion-evidence" element={<PromotionEvidencePage />} />
-          </Routes>
+          <Suspense fallback={<div style={{ minHeight: 240, display: 'grid', placeItems: 'center' }}><Spin size="large" /></div>}>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/manager-update" element={<ManagerUpdatePage />} />
+              <Route path="/insights" element={<InsightsPage />} />
+              <Route path="/people" element={<PeoplePage />} />
+              <Route path="/promotion-evidence" element={<PromotionEvidencePage />} />
+            </Routes>
+          </Suspense>
         </Content>
       </Layout>
     </Layout>

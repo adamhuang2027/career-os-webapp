@@ -8,5 +8,17 @@ export default defineConfig({
     proxy: {
       '/api': 'http://127.0.0.1:5001'
     }
-  }
+  },
+  build: {
+    chunkSizeWarningLimit: 1200,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-antd': ['antd'],
+          'vendor-dayjs': ['dayjs'],
+        },
+      },
+    },
+  },
 })
