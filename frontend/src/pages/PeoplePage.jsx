@@ -16,6 +16,7 @@ export default function PeoplePage() {
   const [connectTarget, setConnectTarget] = useState(null)
   const [connectLogs, setConnectLogs] = useState([])
   const [editingLog, setEditingLog] = useState(null)
+  const [searchKeyword, setSearchKeyword] = useState('')
 
   const load = async () => {
     const { data } = await api.get('/people', { params: { period: graphPeriod } })
@@ -110,12 +111,29 @@ export default function PeoplePage() {
     load()
   }
 
+  const filteredItems = useMemo(() => {
+    const q = searchKeyword.trim().toLowerCase()
+    if (!q) return items
+    return items.filter((x) => {
+      const haystack = [
+        x.name,
+        x.role,
+        x.team,
+        x.relationship_level,
+        x.current_topics,
+        x.value_exchange,
+        x.last_connect_date,
+      ].join(' ').toLowerCase()
+      return haystack.includes(q)
+    })
+  }, [items, searchKeyword])
+
   const stats = useMemo(() => {
-    const strong = items.filter(x => x.relationship_level === 'strong').length
-    const medium = items.filter(x => x.relationship_level === 'medium').length
-    const weak = items.filter(x => x.relationship_level === 'weak').length
+    const strong = filteredItems.filter(x => x.relationship_level === 'strong').length
+    const medium = filteredItems.filter(x => x.relationship_level === 'medium').length
+    const weak = filteredItems.filter(x => x.relationship_level === 'weak').length
     const byTeam = {}
-    for (const x of items) {
+    for (const x of filteredItems) {
       const key = x.team || 'Unknown'
       byTeam[key] = byTeam[key] || { total: 0, strong: 0, medium: 0, weak: 0 }
       byTeam[key].total += 1
@@ -134,7 +152,7 @@ export default function PeoplePage() {
 
   const followups = useMemo(() => {
     const today = dayjs().startOf('day')
-    return [...items]
+    return [...filteredItems]
       .filter(x => x.next_followup_date)
       .map(x => {
         const d = dayjs(x.next_followup_date)
@@ -146,11 +164,11 @@ export default function PeoplePage() {
         return { ...x, diff, bucket }
       })
       .sort((a, b) => a.diff - b.diff)
-  }, [items])
+  }, [filteredItems])
 
   const topConnectors = useMemo(() => {
     const map = {}
-    for (const x of items) {
+    for (const x of filteredItems) {
       const key = x.team || 'Unknown'
       map[key] = map[key] || []
       map[key].push(x)
@@ -161,12 +179,12 @@ export default function PeoplePage() {
         .sort((a, b) => (b.connect_count || 0) - (a.connect_count || 0))
         .slice(0, 3)
     }))
-  }, [items])
+  }, [filteredItems])
 
   const graphTeamOptions = useMemo(() => {
-    const teams = [...new Set(items.map(p => p.team || 'Unknown'))]
+    const teams = [...new Set(filteredItems.map(p => p.team || 'Unknown'))]
     return [{ value: 'all', label: 'All Teams' }, ...teams.map(t => ({ value: t, label: t }))]
-  }, [items])
+  }, [filteredItems])
 
   useEffect(() => {
     if (!graphTeamOptions.find(x => x.value === graphTeam)) {
@@ -181,8 +199,8 @@ export default function PeoplePage() {
     const cy = height / 2
 
     const periodScoped = ['week', 'month', 'year'].includes(graphPeriod)
-      ? items.filter(p => Number(p.connect_count || 0) > 0)
-      : items
+      ? filteredItems.filter(p => Number(p.connect_count || 0) > 0)
+      : filteredItems
     const teamScoped = graphTeam === 'all'
       ? periodScoped
       : periodScoped.filter(p => (p.team || 'Unknown') === graphTeam)
@@ -246,7 +264,7 @@ export default function PeoplePage() {
     }
 
     return { width, height, centerNode, personNodes, teamNodes, edges }
-  }, [items, graphPeriod, graphTeam])
+  }, [filteredItems, graphPeriod, graphTeam])
 
   return (
     <>
@@ -417,10 +435,24 @@ export default function PeoplePage() {
 
       <Card
         title="Contact List"
-        extra={<Button type="primary" onClick={() => setShowNewContact(true)}>New Contact</Button>}
+        extra={(
+          <Space>
+            <Input
+              allowClear
+              style={{ width: 260 }}
+              placeholder="Search name/role/team/topic..."
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+            />
+            <Button type="primary" onClick={() => setShowNewContact(true)}>New Contact</Button>
+          </Space>
+        )}
       >
+        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+          Showing {filteredItems.length} / {items.length}
+        </Typography.Text>
         <Table
-          dataSource={items}
+          dataSource={filteredItems}
           rowKey="id"
           pagination={false}
           columns={[
