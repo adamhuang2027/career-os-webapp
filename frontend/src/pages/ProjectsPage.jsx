@@ -127,6 +127,46 @@ export default function ProjectsPage() {
         cursor = cursor.add(1, 'month')
       }
 
+      const renderTimeline = ({ leftPct, widthPct, color, showLabels = false, keyPrefix = 'tick' }) => (
+        <div style={{ minWidth: 640 }}>
+          <div style={{ position: 'relative', height: 22, background: '#f3f4f6', borderRadius: 8, overflow: 'hidden' }}>
+            {monthTicks.map((m) => {
+              const x = Math.max(0, m.diff(start, 'day')) / total * 100
+              const yearStart = m.month() === 0
+              return (
+                <div
+                  key={`${keyPrefix}-line-${m.format('YYYY-MM')}`}
+                  style={{
+                    position: 'absolute',
+                    left: `${x}%`,
+                    top: 0,
+                    width: 1,
+                    height: 22,
+                    background: yearStart ? '#9ca3af' : '#d1d5db'
+                  }}
+                />
+              )
+            })}
+            <div style={{ position: 'absolute', left: `${leftPct}%`, top: 0, width: `${widthPct}%`, height: 22, borderRadius: 8, background: color }} />
+          </div>
+          {showLabels && (
+            <div style={{ position: 'relative', height: 18, marginTop: 6 }}>
+              {monthTicks.map((m) => {
+                const x = Math.max(0, m.diff(start, 'day')) / total * 100
+                const label = m.month() === 0 ? m.format('YYYY-MM') : m.format('MM')
+                const yearStart = m.month() === 0
+                return (
+                  <div key={`${keyPrefix}-label-${m.format('YYYY-MM')}`}>
+                    <div style={{ position: 'absolute', left: `${x}%`, top: -30, width: 1, height: 30, background: yearStart ? '#6b7280' : '#d1d5db' }} />
+                    <div style={{ position: 'absolute', left: `${x}%`, top: 0, transform: 'translateX(-10%)', fontSize: 11, color: yearStart ? '#374151' : '#6b7280' }}>{label}</div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )
+
       const subtaskRows = tasks.map((t) => {
         const ts = dayjs(t.start_date)
         const te = dayjs(t.end_date || t.start_date)
@@ -140,34 +180,17 @@ export default function ProjectsPage() {
           start: ts.format('YYYY-MM-DD'),
           end: te.format('YYYY-MM-DD'),
           days,
-          bar: (
-            <div style={{ position: 'relative', minWidth: 520, height: 22, background: '#f3f4f6', borderRadius: 8 }}>
-              <div style={{ position: 'absolute', left: `${left}%`, top: 0, width: `${width}%`, height: 22, borderRadius: 8, background: color }} />
-            </div>
-          )
+          bar: renderTimeline({ leftPct: left, widthPct: width, color, keyPrefix: `subtask-${t.id}` })
         }
       })
 
-      const summaryTimeline = (
-        <div style={{ minWidth: 640 }}>
-          <div style={{ position: 'relative', height: 22, background: '#f3f4f6', borderRadius: 8 }}>
-            <div style={{ position: 'absolute', left: 0, top: 0, width: `${Math.max(3, progressPct)}%`, height: 22, borderRadius: 8, background: '#2563eb' }} />
-          </div>
-          <div style={{ position: 'relative', height: 18, marginTop: 6 }}>
-            {monthTicks.map((m) => {
-              const x = Math.max(0, m.diff(start, 'day')) / total * 100
-              const label = m.month() === 0 ? m.format('YYYY-MM') : m.format('MM')
-              const yearStart = m.month() === 0
-              return (
-                <div key={`label-${m.format('YYYY-MM')}`}>
-                  <div style={{ position: 'absolute', left: `${x}%`, top: -30, width: 1, height: 30, background: yearStart ? '#6b7280' : '#d1d5db' }} />
-                  <div style={{ position: 'absolute', left: `${x}%`, top: 0, transform: 'translateX(-10%)', fontSize: 11, color: yearStart ? '#374151' : '#6b7280' }}>{label}</div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )
+      const summaryTimeline = renderTimeline({
+        leftPct: 0,
+        widthPct: Math.max(3, progressPct),
+        color: '#2563eb',
+        showLabels: true,
+        keyPrefix: `project-${p.project_id}`,
+      })
 
       return {
         ...p,
