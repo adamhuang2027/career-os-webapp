@@ -60,7 +60,7 @@ export default function PeoplePage() {
   const openConnectLogs = async (row) => {
     setConnectTarget(row)
     setEditingLog(null)
-    connectForm.setFieldsValue({ connect_date: dayjs(), channel: 'Slack' })
+    connectForm.setFieldsValue({ connect_date: dayjs(), channel: 'Onsite Meeting' })
     await refreshConnectLogs(row.id)
   }
 
@@ -503,7 +503,7 @@ export default function PeoplePage() {
         <Form layout="vertical" form={connectForm}>
           <Row gutter={12}>
             <Col span={8}><Form.Item name="connect_date" label="Date" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="channel" label="Channel"><Select options={[{value:'Slack'},{value:'Teams'},{value:'Email'},{value:'1:1'},{value:'Call'},{value:'Other'}]} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="channel" label="Channel"><Select options={[{value:'Onsite Meeting'},{value:'Teams'},{value:'Email'},{value:'1:1'},{value:'Call'},{value:'Other'}]} /></Form.Item></Col>
             <Col span={8}><Form.Item name="summary" label="Summary" rules={[{ required: true }]}><Input placeholder="What did you discuss?" /></Form.Item></Col>
           </Row>
           <Form.Item name="notes" label="Notes"><Input.TextArea rows={2} placeholder="Key details, blockers, commitments, follow-up" /></Form.Item>
@@ -542,7 +542,7 @@ export default function PeoplePage() {
         <Form layout="vertical" form={editConnectForm}>
           <Row gutter={12}>
             <Col span={8}><Form.Item name="connect_date" label="Date" rules={[{ required: true }]}><DatePicker style={{ width: '100%' }} /></Form.Item></Col>
-            <Col span={8}><Form.Item name="channel" label="Channel"><Select options={[{value:'Slack'},{value:'Teams'},{value:'Email'},{value:'1:1'},{value:'Call'},{value:'Other'}]} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="channel" label="Channel"><Select options={[{value:'Onsite Meeting'},{value:'Teams'},{value:'Email'},{value:'1:1'},{value:'Call'},{value:'Other'}]} /></Form.Item></Col>
             <Col span={8}><Form.Item name="summary" label="Summary" rules={[{ required: true }]}><Input /></Form.Item></Col>
           </Row>
           <Form.Item name="notes" label="Notes"><Input.TextArea rows={3} /></Form.Item>
