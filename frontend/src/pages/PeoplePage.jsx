@@ -380,6 +380,56 @@ export default function PeoplePage() {
         </Row>
       </Card>
 
+      <Card
+        title="Contact List"
+        extra={<Button type="primary" onClick={() => setShowNewContact(true)}>New Contact</Button>}
+        style={{ marginBottom: 16 }}
+      >
+        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+          Showing {filteredItems.length} / {items.length}
+        </Typography.Text>
+        <Table
+          dataSource={filteredItems}
+          rowKey="id"
+          pagination={false}
+          columns={[
+            {
+              title: 'Name', dataIndex: 'name',
+              sorter: (a, b) => (a.name || '').localeCompare(b.name || ''),
+              defaultSortOrder: 'ascend'
+            },
+            {
+              title: 'Role', dataIndex: 'role',
+              sorter: (a, b) => (a.role || '').localeCompare(b.role || '')
+            },
+            {
+              title: 'Team', dataIndex: 'team',
+              sorter: (a, b) => (a.team || '').localeCompare(b.team || '')
+            },
+            {
+              title: 'Relationship', dataIndex: 'relationship_level',
+              sorter: (a, b) => (a.relationship_level || '').localeCompare(b.relationship_level || '')
+            },
+            {
+              title: `Connect Count (${graphPeriod})`, dataIndex: 'connect_count', width: 160,
+              sorter: (a, b) => Number(a.connect_count || 0) - Number(b.connect_count || 0)
+            },
+            {
+              title: 'Last Connect', dataIndex: 'last_connect_date', width: 130,
+              sorter: (a, b) => (a.last_connect_date || '').localeCompare(b.last_connect_date || '')
+            },
+            {
+              title: 'Action', key: 'action', width: 220, render: (_, row) => (
+                <Space>
+                  <Button size="small" onClick={() => openEdit(row)}>Edit</Button>
+                  <Button size="small" onClick={() => openConnectLogs(row)}>Connect Logs</Button>
+                </Space>
+              )
+            }
+          ]}
+        />
+      </Card>
+
       <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
         <Col xs={24} lg={12}>
           <Card title="Follow-up Timeline (Next 14 Days)">
@@ -440,55 +490,6 @@ export default function PeoplePage() {
             </Col>
           ))}
         </Row>
-      </Card>
-
-      <Card
-        title="Contact List"
-        extra={<Button type="primary" onClick={() => setShowNewContact(true)}>New Contact</Button>}
-      >
-        <Typography.Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
-          Showing {filteredItems.length} / {items.length}
-        </Typography.Text>
-        <Table
-          dataSource={filteredItems}
-          rowKey="id"
-          pagination={false}
-          columns={[
-            {
-              title: 'Name', dataIndex: 'name',
-              sorter: (a, b) => (a.name || '').localeCompare(b.name || ''),
-              defaultSortOrder: 'ascend'
-            },
-            {
-              title: 'Role', dataIndex: 'role',
-              sorter: (a, b) => (a.role || '').localeCompare(b.role || '')
-            },
-            {
-              title: 'Team', dataIndex: 'team',
-              sorter: (a, b) => (a.team || '').localeCompare(b.team || '')
-            },
-            {
-              title: 'Relationship', dataIndex: 'relationship_level',
-              sorter: (a, b) => (a.relationship_level || '').localeCompare(b.relationship_level || '')
-            },
-            {
-              title: `Connect Count (${graphPeriod})`, dataIndex: 'connect_count', width: 160,
-              sorter: (a, b) => Number(a.connect_count || 0) - Number(b.connect_count || 0)
-            },
-            {
-              title: 'Last Connect', dataIndex: 'last_connect_date', width: 130,
-              sorter: (a, b) => (a.last_connect_date || '').localeCompare(b.last_connect_date || '')
-            },
-            {
-              title: 'Action', key: 'action', width: 220, render: (_, row) => (
-                <Space>
-                  <Button size="small" onClick={() => openEdit(row)}>Edit</Button>
-                  <Button size="small" onClick={() => openConnectLogs(row)}>Connect Logs</Button>
-                </Space>
-              )
-            }
-          ]}
-        />
       </Card>
 
       <Modal
