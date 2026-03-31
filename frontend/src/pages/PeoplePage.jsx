@@ -351,11 +351,11 @@ export default function PeoplePage() {
               <text
                 key={`label-${n.id}`}
                 x={n.x}
-                y={n.y - (n.r + 6)}
+                y={n.y - (n.r + 3)}
                 textAnchor="middle"
-                fontSize="10"
+                fontSize="9"
                 fill="#0f172a"
-                style={{ paintOrder: 'stroke', stroke: '#ffffff', strokeWidth: 3, pointerEvents: 'none' }}
+                style={{ paintOrder: 'stroke', stroke: '#ffffff', strokeWidth: 2, pointerEvents: 'none' }}
               >
                 {n.label} ({n.connectCount})
               </text>
