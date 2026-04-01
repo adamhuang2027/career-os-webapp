@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Typography, message, Tag } from 'antd'
+import { Alert, Button, Card, Form, Input, Modal, Select, Space, Table, Typography, message, Tag, Upload } from 'antd'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../api/client'
@@ -86,15 +86,8 @@ export default function InsightsPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleEvidencePaste = (targetForm) => async (e) => {
-    const items = e.clipboardData?.items || []
-    const imageItem = Array.from(items).find((it) => it.type?.startsWith('image/'))
-    if (!imageItem) return
-
-    e.preventDefault()
-    const file = imageItem.getAsFile()
+  const appendEvidenceImage = (targetForm, file, sourceLabel = 'image') => {
     if (!file) return
-
     if (file.size > 2 * 1024 * 1024) {
       message.warning('Image is large (>2MB). Consider compressing for better performance.')
     }
@@ -103,11 +96,29 @@ export default function InsightsPage() {
     reader.onload = () => {
       const dataUrl = reader.result
       const current = targetForm.getFieldValue('evidence') || ''
-      const next = `${current}${current ? '\n\n' : ''}![screenshot](${dataUrl})`
+      const next = `${current}${current ? '\n\n' : ''}![${sourceLabel}](${dataUrl})`
       targetForm.setFieldValue('evidence', next)
-      message.success('Screenshot pasted into Evidence')
+      message.success('Image added into Evidence')
     }
     reader.readAsDataURL(file)
+  }
+
+  const handleEvidencePaste = (targetForm) => async (e) => {
+    const items = e.clipboardData?.items || []
+    const imageItem = Array.from(items).find((it) => it.type?.startsWith('image/'))
+    if (!imageItem) return
+
+    e.preventDefault()
+    appendEvidenceImage(targetForm, imageItem.getAsFile(), 'screenshot')
+  }
+
+  const handleEvidenceUpload = (targetForm) => (file) => {
+    if (!file.type?.startsWith('image/')) {
+      message.error('Only image files are supported for Evidence.')
+      return Upload.LIST_IGNORE
+    }
+    appendEvidenceImage(targetForm, file, file.name || 'upload')
+    return false
   }
 
   return (
@@ -119,7 +130,12 @@ export default function InsightsPage() {
           <Form.Item name="phenomenon" label="Phenomenon"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="hypothesis" label="Hypothesis"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="evidence" label="Evidence">
-            <Input.TextArea rows={3} onPaste={handleEvidencePaste(form)} placeholder="You can paste screenshot directly here (Ctrl/Cmd+V)." />
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Upload showUploadList={false} beforeUpload={handleEvidenceUpload(form)} accept="image/*">
+                <Button>Upload Image</Button>
+              </Upload>
+              <Input.TextArea rows={3} onPaste={handleEvidencePaste(form)} placeholder="You can paste screenshot directly here (Ctrl/Cmd+V) or upload image." />
+            </Space>
           </Form.Item>
           <Form.Item name="recommendation" label="Recommendation"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="result" label="Result (optional)"><Input.TextArea rows={2} /></Form.Item>
@@ -174,7 +190,12 @@ export default function InsightsPage() {
           <Form.Item name="phenomenon" label="Phenomenon"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="hypothesis" label="Hypothesis"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="evidence" label="Evidence">
-            <Input.TextArea rows={3} onPaste={handleEvidencePaste(editForm)} placeholder="You can paste screenshot directly here (Ctrl/Cmd+V)." />
+            <Space direction="vertical" style={{ width: '100%' }}>
+              <Upload showUploadList={false} beforeUpload={handleEvidenceUpload(editForm)} accept="image/*">
+                <Button>Upload Image</Button>
+              </Upload>
+              <Input.TextArea rows={3} onPaste={handleEvidencePaste(editForm)} placeholder="You can paste screenshot directly here (Ctrl/Cmd+V) or upload image." />
+            </Space>
           </Form.Item>
           <Form.Item name="recommendation" label="Recommendation"><Input.TextArea rows={2} /></Form.Item>
           <Form.Item name="result" label="Result"><Input.TextArea rows={2} /></Form.Item>
