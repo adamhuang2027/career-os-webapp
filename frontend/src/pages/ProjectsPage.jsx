@@ -196,7 +196,18 @@ export default function ProjectsPage() {
         }
       })
 
-      const actualDays = subtaskRows.reduce((sum, row) => sum + (row.days || 0), 0)
+      const coveredDays = new Set()
+      tasks.forEach((t) => {
+        const ts = dayjs(t.start_date)
+        const te = dayjs(t.end_date || t.start_date)
+        let cursor = ts.startOf('day')
+        const end = te.startOf('day')
+        while (cursor.isBefore(end) || cursor.isSame(end, 'day')) {
+          coveredDays.add(cursor.format('YYYY-MM-DD'))
+          cursor = cursor.add(1, 'day')
+        }
+      })
+      const actualDays = coveredDays.size
 
       const projectLeft = Math.max(0, projectStart.diff(globalStart, 'day')) / globalTotalDays * 100
       const projectWidth = Math.max(2, projectTotal / globalTotalDays * 100)
